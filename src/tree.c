@@ -394,14 +394,16 @@ static DSError_t tree_dump_node(struct tree_node *node, size_t *node_idx,
 	if (serializer) {
 		serializer(node->value, dot_file);
 	} else {
-		DOT_PRINTF("snum: %ld, ptr: %p", node->value.snum, node->value.ptr);
+		DOT_PRINTF("snum: %g, ptr: %p", node->value.fnum, node->value.ptr);
 	}
 
 	DOT_PRINTF("</TD></TR>"
+		"<TR><TD>flags=0x%x</TD></TR>"
 		"<TR><TD BGCOLOR=\"#%06x\"><FONT  COLOR=\"#%06x\">self=%p</FONT></TD></TR>"
 		"<TR><TD BGCOLOR=\"#%06x\"><FONT  COLOR=\"#%06x\">left=%p</FONT></TD></TR>"
 		"<TR><TD BGCOLOR=\"#%06x\"><FONT  COLOR=\"#%06x\">right=%p</FONT></TD></TR>"
 		"</TABLE>>, fillcolor=\"%s\", shape=Mrecord];\n", 
+		(unsigned int)(node->value.flags),
 		tree_pointer_hash(node), inverse_color(tree_pointer_hash(node)), node,
 		tree_pointer_hash(node->left), inverse_color(tree_pointer_hash(node->left)), node->left,
 		tree_pointer_hash(node->right), inverse_color(tree_pointer_hash(node->right)), node->right,

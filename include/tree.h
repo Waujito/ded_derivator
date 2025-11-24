@@ -14,7 +14,8 @@ typedef struct {
 
 	union {
 		void *ptr;
-		int64_t snum;
+		// int64_t snum;
+		double  fnum;
 	};
 } tree_dtype;
 
@@ -46,7 +47,6 @@ DSError_t tree_dtor(struct tree *tree);
 struct tree_node *tnode_ctor(void);
 void tnode_dtor(struct tree_node *node, tree_node_value_dtor vdtor);
 void tnode_recursive_dtor(struct tree_node *node, tree_node_value_dtor vdtor);
-
 
 DSError_t tree_store(struct tree *tree, const char *filename, value_serializer serializer);
 DSError_t tree_serialize_node(struct tree_node *node, FILE *file, value_serializer serializer);

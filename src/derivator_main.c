@@ -39,18 +39,26 @@ int main() {
 	expression_to_latex(&expr, latex_file);
 
 	struct expression derivative = {0};
-	if (derivate(&expr, &derivative)) {
+	if (expression_derive(&expr, &derivative)) {
 		eprintf("derivatingsodf\n");
 	}
 
-
 	dump_params.idx++;
 	dump_params.drawing_filename = "tree_graph1.png";
+	// tree_dump(&derivative.tree, dump_params);
+	expression_to_latex(&derivative, latex_file);
+
+	struct expression simpl_derivative = {0};
+	expression_simplify(&derivative, &simpl_derivative);
+	expression_dtor(&derivative);
+	derivative = simpl_derivative;
+	dump_params.idx++;
+	dump_params.drawing_filename = "tree_graph2.png";
 	tree_dump(&derivative.tree, dump_params);
 	expression_to_latex(&derivative, latex_file);
 
 	struct expression derivative2 = {0};
-	if (derivate(&derivative, &derivative2)) {
+	if (expression_derive(&derivative, &derivative2)) {
 		eprintf("derivatingsodf\n");
 	}
 
@@ -59,10 +67,26 @@ int main() {
 	// tree_dump(&derivative2.tree, dump_params);
 	expression_to_latex(&derivative2, latex_file);
 
+	expression_simplify(&derivative2, &simpl_derivative);
+	expression_dtor(&derivative2);
+	derivative2 = simpl_derivative;
+	dump_params.idx++;
+	dump_params.drawing_filename = "tree_graph3.png";
+	tree_dump(&derivative2.tree, dump_params);
+	expression_to_latex(&derivative2, latex_file);
+
 	struct expression derivative3 = {0};
-	if (derivate(&derivative2, &derivative3)) {
+	if (expression_derive(&derivative2, &derivative3)) {
 		eprintf("derivatingsodf\n");
 	}
+	expression_to_latex(&derivative3, latex_file);
+
+	expression_simplify(&derivative3, &simpl_derivative);
+	expression_dtor(&derivative3);
+	derivative3 = simpl_derivative;
+	dump_params.idx++;
+	dump_params.drawing_filename = "tree_graph4.png";
+	// tree_dump(&derivative3.tree, dump_params);
 	expression_to_latex(&derivative3, latex_file);
 
 	// dump_params.idx++;
