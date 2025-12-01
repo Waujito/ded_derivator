@@ -28,10 +28,12 @@ static int tnode_validate(struct expression *expr, struct tree_node *node) {
 
 	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER) {
 		if (node->left || node->right) {
-			eprintf("dick\n");
 			return S_FAIL;
 		}
 
+		if (!(node->value.flags & DERIVATOR_F_CONSTANT)) {
+			eprintf("validator_constanted 1\n");
+		}
 		node->value.flags |= DERIVATOR_F_CONSTANT;
 		return S_OK;
 	}
@@ -41,14 +43,6 @@ static int tnode_validate(struct expression *expr, struct tree_node *node) {
 		return S_FAIL;
 	}
 	const struct expression_operator *op = node->value.ptr;
-	//
-	// if (op == &expr_operator_variable) {
-	//
-	// }
-	// if (!node->left && !node->right) {
-	// 	eprintf("dick\n");
-	// 	return S_FAIL;
-	// }
 
 	int is_not_constant = 0;
 	if (node->left) {
@@ -72,6 +66,9 @@ static int tnode_validate(struct expression *expr, struct tree_node *node) {
 	}
 
 	if (!is_not_constant && (node->left || node->right)) {
+		if (!(node->value.flags & DERIVATOR_F_CONSTANT)) {
+			eprintf("validator_constanted 2\n");
+		}
 		node->value.flags |= DERIVATOR_F_CONSTANT;
 	}
 
@@ -118,7 +115,6 @@ int expression_store(struct expression *expr, const char *filename) {
 	return S_OK;
 }
 
-
 DSError_t expression_deserializer(tree_dtype *value, const char *str) {
 	assert (value);
 	assert (str);
@@ -159,61 +155,6 @@ DSError_t expression_serializer(tree_dtype value, FILE *out_stream) {
 	}
 
 	return DS_INVALID_ARG;
-}
-
-static DSError_t tnode_to_latex(struct tree_node *node, FILE *out_stream) {
-	assert (node);
-	assert (out_stream);
-
-	if (node->right && !node->left) {
-		return DS_INVALID_ARG;
-	}
-
-	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_OPERATOR) {
-		struct expression_operator *expr_op = node->value.ptr;
-		fprintf(out_stream, "%s", expr_op->latex_name);
-
-		if (node->left) {
-			fprintf(out_stream, "{");
-			tnode_to_latex(node->left, out_stream);
-			fprintf(out_stream, "}");
-		}
-
-		if (node->right) {
-			fprintf(out_stream, "{");
-			tnode_to_latex(node->right, out_stream);
-			fprintf(out_stream, "}");
-		}
-	} else {
-		fprintf(out_stream, "%g", node->value.fnum);
-	}
-
-	return DS_OK;
-}
-
-static const char *latex_command_header =
-"\\newcommand{\\edplus}[2]{(#1 \\mathbin{+} #2)}\n"
-"\\newcommand{\\edminus}[2]{(#1 \\mathbin{-} #2)}\n"
-"\\newcommand{\\edmultiply}[2]{(#1 \\cdot #2)}\n"
-"\\newcommand{\\eddivide}[2]{\\frac{#1}{#2}}\n"
-"\\newcommand{\\edpower}[2]{{#1}^{#2}}\n"
-"\\newcommand{\\edln}[1]{\\mathop{\\mathrm{ln}}\\left(#1\\right)}\n"
-"\\newcommand{\\edx}{\\mathord{x}}\n";
-
-
-DSError_t expression_to_latex(struct expression *expr, FILE *out_stream) {
-	assert (expr);
-	assert (out_stream);
-
-	fprintf(out_stream, "\\begin{center}\n");
-	fprintf(out_stream, "%s", latex_command_header);
-	fprintf(out_stream, "\\begin{math}\n");
-	DSError_t ret = tnode_to_latex(expr->tree.root, out_stream);
-	fprintf(out_stream, "\n");
-	fprintf(out_stream, "\\end{math}\n");
-	fprintf(out_stream, "\\end{center}\n");
-
-	return ret;
 }
 
 struct tree_node *expr_create_number_tnode(double fnum) {

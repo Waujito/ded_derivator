@@ -21,11 +21,18 @@ int expression_store(struct expression *expr, const char *filename);
 
 int expression_derive(struct expression *expr, struct expression *derivative);
 
+int expression_derive_nth(struct expression *expr,
+			  struct expression *derivative,
+			  int nth);
+
 int expression_simplify(struct expression *expr, struct expression *derivative);
 
 int tnode_evaluate(struct expression *expr,
 				   struct tree_node *node, double *fnum);
 int expression_evaluate(struct expression *expr, double *fnum);
+
+int expression_parse_str(char *str, struct expression *expr);
+int expression_parse_file(const char *filename, struct expression *expr);
 
 // DSError_t expression_to_latex(struct expression *expr, struct expression *);
 
@@ -60,12 +67,15 @@ enum {
  * implements value_deserializer
  */
 DSError_t expression_deserializer(tree_dtype *value, const char *str);
+DSError_t expression_deserializer_endp(tree_dtype *value, const char *str, const char **endptr);
 /**
  * implements value_serializer
  */
 DSError_t expression_serializer(tree_dtype value, FILE *out_stream);
 
 DSError_t expression_to_latex(struct expression *expr, FILE *out_stream);
+DSError_t write_latex_header(FILE *latex_file);
+DSError_t write_latex_footer(FILE *latex_file);
 
 struct tree_node *expr_create_number_tnode(double fnum);
 struct tree_node *expr_create_operator_tnode(const struct expression_operator *op, 

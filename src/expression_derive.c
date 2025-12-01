@@ -337,143 +337,57 @@ int expression_derive(struct expression *expr, struct expression *derivative) {
 	return S_OK;
 }
 
-static struct tree_node *tnode_simplify(struct expression *expr, struct tree_node *node) {
-	assert (node);
-
-	if (node->value.flags & DERIVATOR_F_CONSTANT) {
-		double fnum = 0;
-
-		if (tnode_evaluate(expr, node, &fnum)) {
-			return NULL;
-		}
-
-		return expr_create_number_tnode(fnum);
-	}
-
-	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER) {
-		return expr_copy_tnode(expr, node);
-	}
-
-	struct expression_operator *op = node->value.ptr;
-
-	struct tree_node *lnode = NULL, *rnode = NULL;
-	if (node->left) {
-		lnode = tnode_simplify(expr, node->left);
-		if (!lnode) {
-			return NULL;
-		}
-	}
-	if (node->right) {
-		rnode = tnode_simplify(expr, node->right);
-		if (!rnode) {
-			if (lnode) tnode_recursive_dtor(lnode, NULL);
-
-			return NULL;
-		}
-	}
-
-	if (op->idx == DERIVATOR_IDX_MULTIPLY) {
-		if (((lnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(lnode->value.fnum) < deps) ||
-		    ((rnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(rnode->value.fnum) < deps)) {
-			
-			if (lnode) tnode_recursive_dtor(lnode, NULL);
-			if (rnode) tnode_recursive_dtor(rnode, NULL);
-
-			return expr_create_number_tnode(0);
-		}
-	}
-
-	if (op->idx == DERIVATOR_IDX_DIVIDE) {
-		if (((lnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(lnode->value.fnum) < deps)) {
-			
-			if (lnode) tnode_recursive_dtor(lnode, NULL);
-			if (rnode) tnode_recursive_dtor(rnode, NULL);
-
-			return expr_create_number_tnode(0);
-		}
-	}
-
-	if (op->idx == DERIVATOR_IDX_PLUS) {
-		if (((lnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(lnode->value.fnum) < deps)) {
-			if (lnode) tnode_recursive_dtor(lnode, NULL);
-
-			return rnode;
-		}
-		if (((rnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(rnode->value.fnum) < deps)) {
-			if (rnode) tnode_recursive_dtor(rnode, NULL);
-
-			return lnode;
-		}
-	}
-
-	if (op->idx == DERIVATOR_IDX_MINUS) {
-		if (((rnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(rnode->value.fnum) < deps)) {
-			if (rnode) tnode_recursive_dtor(rnode, NULL);
-
-			return lnode;
-		}
-	}
-	if (op->idx == DERIVATOR_IDX_POW) {
-		if (((rnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(rnode->value.fnum) < deps)) {
-			if (lnode) tnode_recursive_dtor(lnode, NULL);
-			if (rnode) tnode_recursive_dtor(rnode, NULL);
-
-			return expr_create_number_tnode(1);
-		}
-	}
-
-	struct tree_node *new_node = expr_create_operator_tnode(op, lnode, rnode);
-	if (!new_node) {
-		if (lnode) tnode_recursive_dtor(lnode, NULL);
-		if (rnode) tnode_recursive_dtor(rnode, NULL);
-
-		return NULL;
-	}
-
-	if ((new_node->value.flags & DERIVATOR_F_CONSTANT) == DERIVATOR_F_CONSTANT) {
-		double fnum = 0;
-
-		if (tnode_evaluate(expr, new_node, &fnum)) {
-			return NULL;
-		}
-
-		tnode_recursive_dtor(new_node, NULL);
-
-		return expr_create_number_tnode(fnum);
-	}
-
-	return new_node;
-}
-
-int expression_simplify(struct expression *expr, struct expression *simplified) {
+int expression_derive_nth(struct expression *expr, struct expression *nth_derivative, int nth) {
 	assert (expr);
-	assert (simplified);
+	assert (nth_derivative);
 
-	if (!expr->tree.root) {
+	if (nth < 0) {
+		log_error("No integration yet!");
 		return S_FAIL;
 	}
 
-	struct tree_node *simplified_root = tnode_simplify(expr, expr->tree.root);
-	if (!simplified_root) {
+	if (nth == 0) {
+		struct tree_node *derivative_root = 
+			expr_copy_tnode(expr, expr->tree.root);
+
+		if (!derivative_root) {
+			return S_FAIL;
+		}
+
+		if (expression_ctor(nth_derivative)) {
+			tnode_recursive_dtor(derivative_root, NULL);
+			return S_FAIL;
+		}
+
+		nth_derivative->tree.root = derivative_root;
+
+		return S_OK;
+	}
+
+	if (expression_derive(expr, nth_derivative)) {
 		return S_FAIL;
 	}
 
-	if (expression_ctor(simplified)) {
-		tnode_recursive_dtor(simplified_root, NULL);
-		return S_FAIL;
-	}
+	struct expression prevdrv = *nth_derivative;
 
-	simplified->tree.root = simplified_root;
+	for (int i = 1; i < nth; i++) {
+		eprintf("%d\n", i);
+		if (expression_derive(&prevdrv, nth_derivative)) {
+			expression_dtor(nth_derivative);
+			return S_FAIL;
+		}
 
-	if (expression_validate(simplified)) {
-		return S_FAIL;
+		expression_dtor(&prevdrv);
+		prevdrv = *nth_derivative;
+
+		eprintf("s %d\n", i);
+		if (expression_simplify(&prevdrv, nth_derivative)) {
+			expression_dtor(nth_derivative);
+			return S_FAIL;
+		}
+
+		expression_dtor(&prevdrv);
+		prevdrv = *nth_derivative;
 	}
 
 	return S_OK;
