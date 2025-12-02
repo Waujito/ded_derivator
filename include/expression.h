@@ -2,14 +2,21 @@
 #define AKINATOR_H
 
 #include "tree.h"
+#include "pvector.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+struct expression_variable {
+	char *name;
+	int value;
+};
 
 struct expression {
 	struct tree tree;
+	struct pvector variables;
+	size_t differentiating_variable;
 };
 
 int expression_ctor(struct expression *expr);
@@ -43,7 +50,8 @@ enum expression_indexes {
 	DERIVATOR_IDX_DIVIDE,
 	DERIVATOR_IDX_POW,
 	DERIVATOR_IDX_LN,
-	DERIVATOR_IDX_X,
+	DERIVATOR_IDX_SIN,
+	DERIVATOR_IDX_COS,
 };
 
 struct expression_operator {
@@ -59,8 +67,9 @@ struct expression_operator {
 
 enum {
 	DERIVATOR_F_NUMBER	= 0x1,
-	DERIVATOR_F_OPERATOR	= 0x3,
-	DERIVATOR_F_CONSTANT	= 1 << 2,
+	DERIVATOR_F_VARIABLE	= 0x2,
+	DERIVATOR_F_OPERATOR	= 0x7,
+	DERIVATOR_F_CONSTANT	= 1 << 3,
 };
 
 /**
@@ -78,6 +87,7 @@ DSError_t write_latex_header(FILE *latex_file);
 DSError_t write_latex_footer(FILE *latex_file);
 
 struct tree_node *expr_create_number_tnode(double fnum);
+struct tree_node *expr_create_variable_tnode(size_t idx);
 struct tree_node *expr_create_operator_tnode(const struct expression_operator *op, 
                                               struct tree_node *left, 
                                               struct tree_node *right);
@@ -102,7 +112,8 @@ DECLARE_EXPERSSION_OP(DERIVATOR_IDX_MULTIPLY, multiplication, "*", "\\edmultiply
 DECLARE_EXPERSSION_OP(DERIVATOR_IDX_DIVIDE, division, "/", "\\eddivide");
 DECLARE_EXPERSSION_OP(DERIVATOR_IDX_POW, power, "^", "\\edpower");
 DECLARE_EXPERSSION_OP(DERIVATOR_IDX_LN, log, "ln", "\\edln");
-DECLARE_EXPERSSION_OP(DERIVATOR_IDX_X, variable, "x", "\\edx");
+DECLARE_EXPERSSION_OP(DERIVATOR_IDX_SIN, sin, "sin", "\\edsin");
+DECLARE_EXPERSSION_OP(DERIVATOR_IDX_COS, cos, "cos", "\\edcos");
 
 #undef DECLARE_EXPERSSION_OP
 
@@ -116,7 +127,8 @@ static const struct expression_operator *const expression_operators[] = {
 	REGISTER_EXPRESSION_OP(DERIVATOR_IDX_DIVIDE, division),
 	REGISTER_EXPRESSION_OP(DERIVATOR_IDX_POW, power),
 	REGISTER_EXPRESSION_OP(DERIVATOR_IDX_LN, log),
-	REGISTER_EXPRESSION_OP(DERIVATOR_IDX_X, variable),
+	REGISTER_EXPRESSION_OP(DERIVATOR_IDX_SIN, sin),
+	REGISTER_EXPRESSION_OP(DERIVATOR_IDX_COS, cos),
 	NULL,
 };
 

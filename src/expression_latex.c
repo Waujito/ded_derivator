@@ -5,7 +5,9 @@
 
 #include "expression.h"
 
-static DSError_t tnode_to_latex(struct tree_node *node, FILE *out_stream) {
+static DSError_t tnode_to_latex(struct expression *expr,
+				struct tree_node *node, FILE *out_stream) {
+	assert (expr);
 	assert (node);
 	assert (out_stream);
 
@@ -19,15 +21,20 @@ static DSError_t tnode_to_latex(struct tree_node *node, FILE *out_stream) {
 
 		if (node->left) {
 			fprintf(out_stream, "{");
-			tnode_to_latex(node->left, out_stream);
+			tnode_to_latex(expr, node->left, out_stream);
 			fprintf(out_stream, "}");
 		}
 
 		if (node->right) {
 			fprintf(out_stream, "{");
-			tnode_to_latex(node->right, out_stream);
+			tnode_to_latex(expr, node->right, out_stream);
 			fprintf(out_stream, "}");
 		}
+	} else if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_VARIABLE) {
+		struct expression_variable *ev = NULL;
+		pvector_get(&expr->variables, node->value.varidx, (void **)&ev);
+
+		fprintf(out_stream, "\\textit{%s}", ev->name);
 	} else {
 		fprintf(out_stream, "%g", node->value.fnum);
 	}
@@ -42,7 +49,8 @@ static const char *latex_command_header =
 "\\newcommand{\\eddivide}[2]{\\frac{#1}{#2}}\n"
 "\\newcommand{\\edpower}[2]{{#1}^{#2}}\n"
 "\\newcommand{\\edln}[1]{\\mathop{\\mathrm{ln}}\\left(#1\\right)}\n"
-"\\newcommand{\\edx}{\\mathord{x}}\n";
+"\\newcommand{\\edcos}[1]{\\mathop{\\mathrm{cos}}\\left(#1\\right)}\n"
+"\\newcommand{\\edsin}[1]{\\mathop{\\mathrm{sin}}\\left(#1\\right)}\n";
 
 
 DSError_t expression_to_latex(struct expression *expr, FILE *out_stream) {
@@ -52,7 +60,7 @@ DSError_t expression_to_latex(struct expression *expr, FILE *out_stream) {
 	fprintf(out_stream, "\\begin{center}\n");
 	fprintf(out_stream, "%s", latex_command_header);
 	fprintf(out_stream, "\\begin{math}\n");
-	DSError_t ret = tnode_to_latex(expr->tree.root, out_stream);
+	DSError_t ret = tnode_to_latex(expr, expr->tree.root, out_stream);
 	fprintf(out_stream, "\n");
 	fprintf(out_stream, "\\end{math}\n");
 	fprintf(out_stream, "\\end{center}\n");

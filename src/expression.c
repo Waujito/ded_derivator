@@ -12,12 +12,19 @@ int expression_ctor(struct expression *expr) {
 		return S_FAIL;
 	}
 
+	if (pvector_init(&(expr->variables), sizeof(struct expression_variable))) {
+		tree_dtor(&expr->tree);
+		return S_FAIL;
+	}
+
 	return S_OK;
 }
+
 int expression_dtor(struct expression *expr) {
 	assert (expr);
 
 	tree_dtor(&expr->tree);
+	pvector_destroy(&expr->variables);
 
 	return S_OK;
 }
@@ -35,6 +42,13 @@ static int tnode_validate(struct expression *expr, struct tree_node *node) {
 			eprintf("validator_constanted 1\n");
 		}
 		node->value.flags |= DERIVATOR_F_CONSTANT;
+		return S_OK;
+	}
+
+	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_VARIABLE) {
+		if (node->left || node->right) {
+			return S_FAIL;
+		}
 		return S_OK;
 	}
 
@@ -149,6 +163,11 @@ DSError_t expression_serializer(tree_dtype value, FILE *out_stream) {
 		return DS_OK;
 	}
 
+	if ((value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_VARIABLE) {
+		fprintf(out_stream, "x");
+		return DS_OK;
+	}
+
 	if ((value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_OPERATOR) {
 		fprintf(out_stream, "%s", ((struct expression_operator *)value.ptr)->name);
 		return DS_OK;
@@ -165,6 +184,20 @@ struct tree_node *expr_create_number_tnode(double fnum) {
 
 	node->value.fnum = fnum;
 	node->value.flags = DERIVATOR_F_NUMBER | DERIVATOR_F_CONSTANT;
+	node->left = NULL;
+	node->right = NULL;
+
+	return node;
+}
+
+struct tree_node *expr_create_variable_tnode(size_t idx) {
+	struct tree_node *node = tnode_ctor();
+
+	if (!node)
+		return NULL;
+
+	node->value.varidx = idx;
+	node->value.flags = DERIVATOR_F_VARIABLE;
 	node->left = NULL;
 	node->right = NULL;
 

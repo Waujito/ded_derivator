@@ -14,7 +14,7 @@ typedef struct {
 
 	union {
 		void *ptr;
-		// int64_t snum;
+		size_t varidx;
 		double  fnum;
 	};
 } tree_dtype;

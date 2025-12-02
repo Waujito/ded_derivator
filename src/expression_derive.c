@@ -276,6 +276,106 @@ struct tree_node *expr_op_deriver_log(struct expression *expr, struct tree_node 
 	return op_node;
 }
 
+// d(cos(u))/dx = (du/dx)*(-sin(u))
+struct tree_node *expr_op_deriver_cos(struct expression *expr, struct tree_node *node) {
+	assert (node);
+
+	if (node->right != NULL)
+		return NULL;
+
+	struct tree_node *u = node->left;
+
+	struct tree_node *du_dx = tnode_derive(expr, u);
+	if (!du_dx) {
+		return NULL;
+	}
+
+	struct tree_node *u_cpy = expr_copy_tnode(expr, u);
+	if (!u_cpy) {
+		tnode_recursive_dtor(du_dx, NULL);
+		return NULL;
+	}
+
+	struct tree_node * sin_node = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_SIN), u_cpy, NULL);
+
+	if (!sin_node) {
+		tnode_recursive_dtor(du_dx, NULL);
+		tnode_recursive_dtor(u_cpy, NULL);
+		return NULL;
+	}
+
+	struct tree_node *zero = expr_create_number_tnode(0);
+
+	if (!zero) {
+		tnode_recursive_dtor(du_dx, NULL);
+		tnode_recursive_dtor(sin_node, NULL);
+		return NULL;
+	}
+
+	struct tree_node *min_sin = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_MINUS), zero, sin_node);
+
+	if (!min_sin) {
+		tnode_recursive_dtor(du_dx, NULL);
+		tnode_recursive_dtor(sin_node, NULL);
+		tnode_recursive_dtor(zero, NULL);
+		return NULL;
+	}
+
+	struct tree_node * op_node = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_MULTIPLY), min_sin, du_dx);
+
+	if (!op_node) {
+		tnode_recursive_dtor(du_dx, NULL);
+		tnode_recursive_dtor(min_sin, NULL);
+		return NULL;
+	}
+
+	return op_node;
+}
+
+// d(sin(u))/dx = (du/dx)*(cos(u))
+struct tree_node *expr_op_deriver_sin(struct expression *expr, struct tree_node *node) {
+	assert (node);
+
+	if (node->right != NULL)
+		return NULL;
+
+	struct tree_node *u = node->left;
+
+	struct tree_node *du_dx = tnode_derive(expr, u);
+	if (!du_dx) {
+		return NULL;
+	}
+
+	struct tree_node *u_cpy = expr_copy_tnode(expr, u);
+	if (!u_cpy) {
+		tnode_recursive_dtor(du_dx, NULL);
+		return NULL;
+	}
+
+	struct tree_node * cos_node = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_COS), u_cpy, NULL);
+
+	if (!cos_node) {
+		tnode_recursive_dtor(du_dx, NULL);
+		tnode_recursive_dtor(u_cpy, NULL);
+		return NULL;
+	}
+
+	struct tree_node * op_node = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_MULTIPLY), cos_node, du_dx);
+
+	if (!op_node) {
+		tnode_recursive_dtor(du_dx, NULL);
+		tnode_recursive_dtor(cos_node, NULL);
+		return NULL;
+	}
+
+	return op_node;
+}
+
 // dx/dx = 1
 struct tree_node *expr_op_deriver_variable(struct expression *expr, struct tree_node *node) {
 	(void)node;
@@ -296,6 +396,10 @@ static struct tree_node *tnode_derive(struct expression *expr, struct tree_node 
 
 	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER) {
 		return expr_op_deriver_constant(expr, node);
+	}
+
+	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_VARIABLE) {
+		return expr_op_deriver_variable(expr, node);
 	}
 
 	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_OPERATOR) {
@@ -327,6 +431,11 @@ int expression_derive(struct expression *expr, struct expression *derivative) {
 	}
 
 	derivative->tree.root = derivative_root;
+
+	if (pvector_clone(&derivative->variables, &expr->variables)) {
+		expression_dtor(derivative);
+		return S_FAIL;
+	}
 
 	if (expression_validate(derivative)) {
 		log_error("invalid");
@@ -360,6 +469,11 @@ int expression_derive_nth(struct expression *expr, struct expression *nth_deriva
 		}
 
 		nth_derivative->tree.root = derivative_root;
+
+		if (pvector_clone(&nth_derivative->variables, &expr->variables)) {
+			expression_dtor(nth_derivative);
+			return S_FAIL;
+		}
 
 		return S_OK;
 	}

@@ -14,7 +14,6 @@ int main() {
 		return 1;
 	}
 
-
 	FILE *dump_file = fopen("tree.htm", "w");
 	if (!dump_file) {
 		log_error("Cannot open dump file!");
@@ -30,18 +29,14 @@ int main() {
 
 	tree_dump(&expr.tree, dump_params);
 
-	FILE *latex_file = fopen("data.tex", "w");
-	if (!latex_file) {
-		log_error("cannot open latex file!");
-		return 1;
-	}
+	FILE *latex_file = popen("pdflatex &>/dev/null", "w");
 	write_latex_header(latex_file);
 
 	fprintf(latex_file, "\\section{expression}\n");
 	expression_to_latex(&expr, latex_file);
 
 	struct expression derivative = {0};
-	if (expression_derive_nth(&expr, &derivative, 10)) {
+	if (expression_derive_nth(&expr, &derivative, 1)) {
 		eprintf("derivatingsodf\n");
 	}
 
@@ -97,7 +92,9 @@ int main() {
 
 
 	write_latex_footer(latex_file);
-	fclose(latex_file);
+	if (pclose(latex_file)) {
+		eprintf("Failed to write to latex\n");
+	}
 	fclose(dump_file);
 	expression_dtor(&expr);
 	expression_dtor(&derivative);

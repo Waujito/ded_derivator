@@ -77,6 +77,14 @@ EXPR_UNARY_OP(log,
 	*fnum = log(src_num);
 )
 
+EXPR_UNARY_OP(sin,
+	*fnum = sin(src_num);
+)
+
+EXPR_UNARY_OP(cos,
+	*fnum = cos(src_num);
+)
+
 int expr_op_evaluator_variable(struct expression *expr,
 				   struct tree_node *node, double *fnum) {
 	assert (expr);

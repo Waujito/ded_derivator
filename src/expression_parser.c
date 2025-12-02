@@ -23,9 +23,16 @@
 	(int)prs_status_;					\
 })
 
+struct pvector var_names = {0};
+
+static void var_destructor(void *el) {
+	struct expression_variable *ev = el;
+
+	free(ev->name);
+}
+
 static int getPrimaryExpression(const char **s, struct tree_node **node);
 static int getExpression(const char **s, struct tree_node **node);
-
 
 static int getNumber(const char **s, struct tree_node **node) {
 	assert (s);
@@ -60,6 +67,8 @@ static int getOperator(const char **s, struct tree_node **node) {
 
 	size_t str_op_len = (size_t)(str_op_end - *s);
 
+	str_op_end++;
+
 	const struct expression_operator *const *derop_ptr = expression_operators;
 	while (*derop_ptr != NULL) {
 		if (!strncmp(*s, (*derop_ptr)->name, str_op_len) &&
@@ -71,10 +80,13 @@ static int getOperator(const char **s, struct tree_node **node) {
 			if (CALL_PARSER(getExpression, s, &lnode)) {
 				return PARSER_RET_STATUS(S_FAIL);
 			}
+
 			*node = expr_create_operator_tnode(*derop_ptr, lnode, NULL);
 			if (!*node) {
 				return PARSER_RET_STATUS(S_FAIL);
 			}
+
+			(*s)++;
 
 			return PARSER_RET_STATUS(S_OK);
 		}
@@ -89,17 +101,61 @@ static int getVariable(const char **s, struct tree_node **node) {
 	assert (s);
 	assert (node);
 
-	if (**s == 'x') {
-		(*s)++;
-		*node = expr_create_operator_tnode(
-			expression_operators[DERIVATOR_IDX_X], NULL, NULL);
-		if (!(*node)) {
-			return PARSER_RET_STATUS(S_FAIL);
-		}
-		return PARSER_RET_STATUS(S_OK);
+	const char *str_op_end = *s;
+
+	if (isdigit(*str_op_end)) {
+		return PARSER_RET_STATUS(S_CONTINUE);
 	}
 
-	return PARSER_RET_STATUS(S_CONTINUE);
+	while (isalpha(*str_op_end) || isdigit(*str_op_end)) {
+		str_op_end++;
+	}
+
+	size_t op_len = (size_t)(str_op_end - *s);
+
+	if (op_len == 0) {
+		return PARSER_RET_STATUS(S_CONTINUE);
+	}
+
+	for (size_t i = 0; i < var_names.len; i++) {
+		struct expression_variable *var = NULL;
+		if (pvector_get(&var_names, i, (void **)&var)) {
+			continue;
+		}
+
+		if (!strncmp(var->name, *s, op_len)) {
+			*s = str_op_end;
+
+			*node = expr_create_variable_tnode(i);
+			if (!(*node)) {
+				return PARSER_RET_STATUS(S_FAIL);
+			}
+			return PARSER_RET_STATUS(S_OK);
+		}
+	}
+
+	struct expression_variable new_var = {0};
+	new_var.name = strndup(*s, op_len);
+
+	*s = str_op_end;
+
+	if (!new_var.name) {
+		return PARSER_RET_STATUS(S_FAIL);
+	}
+	new_var.value = 0;
+
+	*node = expr_create_variable_tnode(var_names.len);
+
+	if (pvector_push_back(&var_names, &new_var)) {
+		free(new_var.name);
+		return PARSER_RET_STATUS(S_FAIL);
+	}
+
+	if (!(*node)) {
+		return PARSER_RET_STATUS(S_FAIL);
+	}
+
+	return PARSER_RET_STATUS(S_OK);
 }
 
 static int getC(const char **s, struct tree_node **node) {
@@ -371,6 +427,17 @@ int expression_parse_str(char *str, struct expression *expr) {
 
 	const char *s_copy = str;
 
+	if (pvector_init(&var_names, sizeof(struct expression_variable))) {
+		expression_dtor(expr);
+		return S_FAIL;
+	}
+
+	if (pvector_set_element_destructor(&var_names, var_destructor)) {
+		pvector_destroy(&var_names);
+		expression_dtor(expr);
+		return S_FAIL;
+	}
+
 	if (CALL_PARSER(getG, &s_copy, &expr->tree.root)) {
 		size_t fail_pos = (size_t)(s_copy - str); 
 
@@ -379,9 +446,13 @@ int expression_parse_str(char *str, struct expression *expr) {
 		log_str_neighborhood(str, s_copy, 10, stdout);
 
 		expression_dtor(expr);
+		pvector_destroy(&var_names);
 
 		return S_FAIL;
 	}
+
+	expr->variables = var_names;
+	var_names = (struct pvector){0};
 
 	return S_OK;
 }

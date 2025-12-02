@@ -25,6 +25,10 @@ static struct tree_node *tnode_simplify(struct expression *expr, struct tree_nod
 		return expr_copy_tnode(expr, node);
 	}
 
+	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_VARIABLE) {
+		return expr_copy_tnode(expr, node);
+	}
+
 	struct expression_operator *op = node->value.ptr;
 
 	struct tree_node *lnode = NULL, *rnode = NULL;
@@ -156,7 +160,13 @@ int expression_simplify(struct expression *expr, struct expression *simplified) 
 
 	simplified->tree.root = simplified_root;
 
+	if (pvector_clone(&simplified->variables, &expr->variables)) {
+		expression_dtor(simplified);
+		return S_FAIL;
+	}
+
 	if (expression_validate(simplified)) {
+		eprintf("dick\n");
 		return S_FAIL;
 	}
 
