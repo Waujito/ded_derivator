@@ -180,12 +180,92 @@ struct tree_node *expr_op_deriver_division(struct expression *expr, struct tree_
 	return op_node;
 }
 
+
+// d(u^C)/dx = C*(u^(C-1))*du/dx
+struct tree_node *expr_op_deriver_power_const(
+	struct expression *expr, struct tree_node *node) {
+	assert (expr);
+	assert (node);
+
+	struct tree_node *u = node->left;
+	struct tree_node *v = node->right;
+
+	struct tree_node *u_cpy = expr_copy_tnode(expr, u);
+	struct tree_node *v_cpy = expr_copy_tnode(expr, v);
+	struct tree_node *v_pow_cpy = expr_copy_tnode(expr, v);
+	struct tree_node *one_scalar = expr_create_number_tnode(1);
+	if (!u_cpy || !v_cpy || !v_pow_cpy || !one_scalar) {
+		if (u_cpy) tnode_recursive_dtor(u_cpy, NULL);
+		if (v_cpy) tnode_recursive_dtor(v_cpy, NULL);
+		if (v_pow_cpy) tnode_recursive_dtor(v_pow_cpy, NULL);
+		return NULL;
+	}
+
+
+	struct tree_node *v_min_one = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_MINUS), v_pow_cpy, one_scalar);
+
+	if (!v_min_one) {
+		tnode_recursive_dtor(u_cpy, NULL);
+		tnode_recursive_dtor(v_cpy, NULL);
+		tnode_recursive_dtor(v_pow_cpy, NULL);
+		tnode_recursive_dtor(one_scalar, NULL);
+		return NULL;
+	}
+	v_pow_cpy = NULL;
+	one_scalar = NULL;
+
+	struct tree_node *u_pow_vm = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_POW), u_cpy, v_min_one);
+
+	if (!u_pow_vm) {
+		tnode_recursive_dtor(u_cpy, NULL);
+		tnode_recursive_dtor(v_cpy, NULL);
+		tnode_recursive_dtor(v_min_one, NULL);
+		return NULL;
+	}
+	u_cpy = NULL;
+	v_min_one = NULL;
+
+	struct tree_node *v_mul_upow = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_MULTIPLY), v_cpy, u_pow_vm);
+	if (!v_mul_upow) {
+		tnode_recursive_dtor(v_cpy, NULL);
+		tnode_recursive_dtor(u_pow_vm, NULL);
+		return NULL;
+	}
+	v_cpy = NULL;
+	u_pow_vm = NULL;
+
+	struct tree_node *u_derivative = tnode_derive(expr, u);
+	if (!u_derivative) {
+		tnode_recursive_dtor(v_mul_upow, NULL);
+		return NULL;
+	}
+
+
+	struct tree_node * op_node = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_MULTIPLY), v_mul_upow, u_derivative);
+
+	if (!op_node) {
+		tnode_recursive_dtor(v_mul_upow, NULL);
+		tnode_recursive_dtor(u_derivative, NULL);
+		return NULL;
+	}
+
+	return op_node;
+}
+
 // d(u^v)/dx = (u^v)*(v*d(ln(u))/dx + ln(u)*dv/dx) = (u^v)*d(v*ln(u))/dx
 struct tree_node *expr_op_deriver_power(struct expression *expr, struct tree_node *node) {
 	assert (node);
 
 	struct tree_node *u = node->left;
 	struct tree_node *v = node->right;
+
+	if ((v->value.flags & DERIVATOR_F_CONSTANT) == DERIVATOR_F_CONSTANT) {
+		return expr_op_deriver_power_const(expr, node);
+	}
 
 	struct tree_node *o_pow = expr_copy_tnode(expr, node);
 	if (!o_pow) {
@@ -240,8 +320,6 @@ struct tree_node *expr_op_deriver_power(struct expression *expr, struct tree_nod
 	}
 
 	return op_node;
-
-	return NULL;
 }
 
 // d(ln(u))/dx = (du/dx)*(1/u)
@@ -305,21 +383,21 @@ struct tree_node *expr_op_deriver_cos(struct expression *expr, struct tree_node 
 		return NULL;
 	}
 
-	struct tree_node *zero = expr_create_number_tnode(0);
+	struct tree_node *min_one = expr_create_number_tnode(-1);
 
-	if (!zero) {
+	if (!min_one) {
 		tnode_recursive_dtor(du_dx, NULL);
 		tnode_recursive_dtor(sin_node, NULL);
 		return NULL;
 	}
 
 	struct tree_node *min_sin = expr_create_operator_tnode(
-		DERIV_OP(DERIVATOR_IDX_MINUS), zero, sin_node);
+		DERIV_OP(DERIVATOR_IDX_MULTIPLY), min_one, sin_node);
 
 	if (!min_sin) {
 		tnode_recursive_dtor(du_dx, NULL);
 		tnode_recursive_dtor(sin_node, NULL);
-		tnode_recursive_dtor(zero, NULL);
+		tnode_recursive_dtor(min_one, NULL);
 		return NULL;
 	}
 
@@ -417,6 +495,12 @@ int expression_derive(struct expression *expr, struct expression *derivative) {
 	assert (derivative);
 
 	if (!expr->tree.root) {
+		return S_FAIL;
+	}
+
+	if (expression_validate(expr)) {
+		log_error("invalid");
+		expression_dtor(expr);
 		return S_FAIL;
 	}
 

@@ -60,6 +60,7 @@ struct expression_operator {
 	struct tree_node* (*deriver)(struct expression *expr, struct tree_node *node);
 	int (*evaluator)(struct expression *expr, struct tree_node *node, double *fnum);
 	const char *latex_name;
+	int priority;
 };
 
 // Update the operators array with derivative functions
@@ -93,7 +94,7 @@ struct tree_node *expr_create_operator_tnode(const struct expression_operator *o
                                               struct tree_node *right);
 struct tree_node *expr_copy_tnode(struct expression *expr, struct tree_node *original);
 
-#define DECLARE_EXPERSSION_OP(_idx, opname, opstring_name, oplatex)		\
+#define DECLARE_EXPERSSION_OP(_idx, opname, opstring_name, oplatex, oppriority)	\
 	struct tree_node *expr_op_deriver_##opname(struct expression *expr,	\
 				struct tree_node *node);			\
 	int expr_op_evaluator_##opname(struct expression *expr,			\
@@ -104,16 +105,17 @@ struct tree_node *expr_copy_tnode(struct expression *expr, struct tree_node *ori
 		.deriver = expr_op_deriver_##opname,				\
 		.evaluator = expr_op_evaluator_##opname,			\
 		.latex_name = oplatex,						\
+		.priority = oppriority,						\
 	}
 
-DECLARE_EXPERSSION_OP(DERIVATOR_IDX_PLUS, addition, "+", "\\edplus");
-DECLARE_EXPERSSION_OP(DERIVATOR_IDX_MINUS, subtraction, "-", "\\edminus");
-DECLARE_EXPERSSION_OP(DERIVATOR_IDX_MULTIPLY, multiplication, "*", "\\edmultiply");
-DECLARE_EXPERSSION_OP(DERIVATOR_IDX_DIVIDE, division, "/", "\\eddivide");
-DECLARE_EXPERSSION_OP(DERIVATOR_IDX_POW, power, "^", "\\edpower");
-DECLARE_EXPERSSION_OP(DERIVATOR_IDX_LN, log, "ln", "\\edln");
-DECLARE_EXPERSSION_OP(DERIVATOR_IDX_SIN, sin, "sin", "\\edsin");
-DECLARE_EXPERSSION_OP(DERIVATOR_IDX_COS, cos, "cos", "\\edcos");
+DECLARE_EXPERSSION_OP(DERIVATOR_IDX_PLUS, addition, "+", "\\edplus", 3);
+DECLARE_EXPERSSION_OP(DERIVATOR_IDX_MINUS, subtraction, "-", "\\edminus", 3);
+DECLARE_EXPERSSION_OP(DERIVATOR_IDX_MULTIPLY, multiplication, "*", "\\edmultiply", 2);
+DECLARE_EXPERSSION_OP(DERIVATOR_IDX_DIVIDE, division, "/", "\\eddivide", 2);
+DECLARE_EXPERSSION_OP(DERIVATOR_IDX_LN, log, "ln", "\\edln", 1);
+DECLARE_EXPERSSION_OP(DERIVATOR_IDX_SIN, sin, "sin", "\\edsin", 1);
+DECLARE_EXPERSSION_OP(DERIVATOR_IDX_COS, cos, "cos", "\\edcos", 1);
+DECLARE_EXPERSSION_OP(DERIVATOR_IDX_POW, power, "^", "\\edpower", 0);
 
 #undef DECLARE_EXPERSSION_OP
 

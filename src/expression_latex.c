@@ -20,14 +20,44 @@ static DSError_t tnode_to_latex(struct expression *expr,
 		fprintf(out_stream, "%s", expr_op->latex_name);
 
 		if (node->left) {
+			int brackets = 0;
+			if ((node->left->value.flags & DERIVATOR_F_OPERATOR)
+					== DERIVATOR_F_OPERATOR) {
+				struct expression_operator *inl_op =  node->left->value.ptr;
+				if (inl_op->priority > expr_op->priority) {
+					brackets = 1;
+				}
+			}
+
 			fprintf(out_stream, "{");
+			if (brackets) {
+				fprintf(out_stream, "(");
+			}
 			tnode_to_latex(expr, node->left, out_stream);
+			if (brackets) {
+				fprintf(out_stream, ")");
+			}
 			fprintf(out_stream, "}");
 		}
 
 		if (node->right) {
+			int brackets = 0;
+			if ((node->right->value.flags & DERIVATOR_F_OPERATOR)
+					== DERIVATOR_F_OPERATOR) {
+				struct expression_operator *inl_op =  node->right->value.ptr;
+				if (inl_op->priority > expr_op->priority) {
+					brackets = 1;
+				}
+			}
+
 			fprintf(out_stream, "{");
+			if (brackets) {
+				fprintf(out_stream, "(");
+			}
 			tnode_to_latex(expr, node->right, out_stream);
+			if (brackets) {
+				fprintf(out_stream, ")");
+			}
 			fprintf(out_stream, "}");
 		}
 	} else if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_VARIABLE) {
@@ -43,14 +73,14 @@ static DSError_t tnode_to_latex(struct expression *expr,
 }
 
 static const char *latex_command_header =
-"\\newcommand{\\edplus}[2]{(#1 \\mathbin{+} #2)}\n"
-"\\newcommand{\\edminus}[2]{(#1 \\mathbin{-} #2)}\n"
-"\\newcommand{\\edmultiply}[2]{(#1 \\cdot #2)}\n"
+"\\newcommand{\\edplus}[2]{#1 \\mathbin{+} #2}\n"
+"\\newcommand{\\edminus}[2]{#1 \\mathbin{-} #2}\n"
+"\\newcommand{\\edmultiply}[2]{#1 \\cdot #2}\n"
 "\\newcommand{\\eddivide}[2]{\\frac{#1}{#2}}\n"
 "\\newcommand{\\edpower}[2]{{#1}^{#2}}\n"
-"\\newcommand{\\edln}[1]{\\mathop{\\mathrm{ln}}\\left(#1\\right)}\n"
-"\\newcommand{\\edcos}[1]{\\mathop{\\mathrm{cos}}\\left(#1\\right)}\n"
-"\\newcommand{\\edsin}[1]{\\mathop{\\mathrm{sin}}\\left(#1\\right)}\n";
+"\\newcommand{\\edln}[1]{\\mathop{\\mathrm{ln}} #1}\n"
+"\\newcommand{\\edcos}[1]{\\mathop{\\mathrm{cos}} #1}\n"
+"\\newcommand{\\edsin}[1]{\\mathop{\\mathrm{sin}} #1}\n";
 
 
 DSError_t expression_to_latex(struct expression *expr, FILE *out_stream) {
