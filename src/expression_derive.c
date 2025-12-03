@@ -636,6 +636,16 @@ int expression_derive_nth(struct expression *expr, struct expression *nth_deriva
 	return S_OK;
 }
 
+double factorial(int nth) {
+	double fact = 1;
+
+	for (int i = 1; i <= nth; i++) {
+		fact *= i;
+	}
+
+	return fact;
+}
+
 int expression_tailor_series_nth(struct expression *expr,
 				 struct expression *series, int nth) {
 	assert (expr);
@@ -659,7 +669,9 @@ int expression_tailor_series_nth(struct expression *expr,
 		*small_o_node = NULL,
 		*num0_node = NULL,
 		*tailor_root = NULL,
-		*last_tailor_node = NULL;
+		*last_tailor_node = NULL,
+		*x0_node = NULL,
+		*x_minus_x0_node = NULL;
 	double tailor0 = 0;
 
 	if (nth < 0) {
@@ -744,23 +756,36 @@ int expression_tailor_series_nth(struct expression *expr,
 			_CT_FAIL();
 		}
 
+		fnum /= factorial(i);
+
 		nth_tailor = expr_create_number_tnode(fnum);
 		x_node = expr_create_variable_tnode(expr->differentiating_variable);
+		x0_node = expr_create_number_tnode(diff_variable->value);
 		x_power = expr_create_number_tnode(i);
-
-		if (!nth_tailor || !x_node || !x_power) {
+		if (!nth_tailor || !x_node || !x0_node || !x_power) {
 			_CT_FAIL();
 		}
 
+		x_minus_x0_node = expr_create_operator_tnode(
+			DERIV_OP(DERIVATOR_IDX_MINUS), x_node, x0_node 
+		);
+
+		if (!x_minus_x0_node) {
+			_CT_FAIL();
+		}
+
+		x_node = NULL;
+		x0_node = NULL;
+
 		x_powered_node = expr_create_operator_tnode(
-			DERIV_OP(DERIVATOR_IDX_POW), x_node, x_power
+			DERIV_OP(DERIVATOR_IDX_POW), x_minus_x0_node, x_power
 		);
 
 		if (!x_powered_node) {
 			_CT_FAIL();	
 		}
 
-		x_node = NULL;
+		x_minus_x0_node = NULL;
 		x_power = NULL;
 
 		nth_tailor_sym = expr_create_operator_tnode(
@@ -804,6 +829,14 @@ int expression_tailor_series_nth(struct expression *expr,
 	series->tree.root = tailor_root;
 	tailor_root = NULL;
 
+	struct expression simple_series = {0};
+	if (expression_simplify(series, &simple_series)) {
+		expression_dtor(series);
+		_CT_FAIL();
+	}
+	expression_dtor(series);
+	*series = simple_series;
+
 _CT_EXIT_POINT:
 	tnode_recursive_dtor(ox_node, NULL);
 	tnode_recursive_dtor(ox_power, NULL);
@@ -813,8 +846,9 @@ _CT_EXIT_POINT:
 	expression_dtor(&prevdrv);
 	tnode_recursive_dtor(x_node, NULL);
 	tnode_recursive_dtor(nth_tailor, NULL);
-	tnode_recursive_dtor(x_node, NULL);
 	tnode_recursive_dtor(x_power, NULL);
+	tnode_recursive_dtor(x0_node, NULL);
+	tnode_recursive_dtor(x_minus_x0_node, NULL);
 	tnode_recursive_dtor(x_powered_node, NULL);
 	tnode_recursive_dtor(nth_tailor_sym , NULL);
 

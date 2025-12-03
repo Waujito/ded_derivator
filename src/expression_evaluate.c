@@ -120,7 +120,8 @@ int tnode_evaluate(struct expression *expr,
 
 	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_OPERATOR) {
 		const struct expression_operator *op = node->value.ptr;
-		return op->evaluator(expr, node, fnum);
+		int st = op->evaluator(expr, node, fnum);
+		return st;
 	}
 
 	return S_FAIL;

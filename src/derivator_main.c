@@ -113,7 +113,7 @@ int main() {
 	if (expression_parse_file("expr.txt", &expr)) {
 		log_error("error");
 		return 1;
-	}
+	}	
 
 	FILE *dump_file = fopen("tree.htm", "w");
 	if (!dump_file) {
@@ -159,6 +159,11 @@ int main() {
 
 
 	struct expression tailor_series = {0};
+
+	struct expression_variable *ev;
+	pvector_get(&expr.variables, 0, (void **)&ev);
+	ev->value = 0;
+
 	expression_tailor_series_nth(&expr,
 				 &tailor_series, 7);
 
