@@ -80,8 +80,8 @@ static const char *latex_command_header =
 "\\newcommand{\\edpower}[2]{{#1}^{#2}}\n"
 "\\newcommand{\\edln}[1]{\\mathop{\\mathrm{ln}} #1}\n"
 "\\newcommand{\\edcos}[1]{\\mathop{\\mathrm{cos}} #1}\n"
-"\\newcommand{\\edsin}[1]{\\mathop{\\mathrm{sin}} #1}\n";
-
+"\\newcommand{\\edsin}[1]{\\mathop{\\mathrm{sin}} #1}\n"
+"\\newcommand{\\edsmallo}[1]{\\mathop{\\mathrm{o}} (#1)}\n";
 
 DSError_t expression_to_latex(struct expression *expr, FILE *out_stream) {
 	assert (expr);

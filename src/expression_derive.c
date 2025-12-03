@@ -16,26 +16,32 @@ static struct tree_node *tnode_derive(struct expression *expr, struct tree_node 
 struct tree_node *expr_op_deriver_addition(struct expression *expr, struct tree_node *node) {
 	assert (node);
 
-	struct tree_node *left_deriv = tnode_derive(expr, node->left);
+	int ret = S_OK;
+
+	struct tree_node
+		*left_deriv = NULL,
+		*right_deriv = NULL,
+		*op_node = NULL;
+
+	left_deriv = tnode_derive(expr, node->left);
 	if (!left_deriv) {
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node *right_deriv = tnode_derive(expr, node->right);
+	right_deriv = tnode_derive(expr, node->right);
 
 	if (!right_deriv) {
-		tnode_recursive_dtor(left_deriv, NULL);
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node * op_node = expr_create_operator_tnode(
+	op_node = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_PLUS), left_deriv, right_deriv);
+	left_deriv = NULL;
+	right_deriv = NULL;
 
-	if (!op_node) {
-		tnode_recursive_dtor(left_deriv, NULL);
-		tnode_recursive_dtor(right_deriv, NULL);
-		return NULL;
-	}
+_CT_EXIT_POINT:
+	tnode_recursive_dtor(left_deriv, NULL);
+	tnode_recursive_dtor(right_deriv, NULL);
 
 	return op_node;
 }
@@ -44,26 +50,31 @@ struct tree_node *expr_op_deriver_addition(struct expression *expr, struct tree_
 struct tree_node *expr_op_deriver_subtraction(struct expression *expr, struct tree_node *node) {
 	assert (node);
 
-	struct tree_node *left_deriv = tnode_derive(expr, node->left);
+	int ret = S_OK;
+
+	struct tree_node
+		*left_deriv = NULL,
+		*right_deriv = NULL,
+		*op_node = NULL;
+
+	left_deriv = tnode_derive(expr, node->left);
 	if (!left_deriv) {
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node *right_deriv = tnode_derive(expr, node->right);
-
+	right_deriv = tnode_derive(expr, node->right);
 	if (!right_deriv) {
-		tnode_recursive_dtor(left_deriv, NULL);
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node * op_node = expr_create_operator_tnode(
+	op_node = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_MINUS), left_deriv, right_deriv);
+	left_deriv = NULL;
+	right_deriv = NULL;
 
-	if (!op_node) {
-		tnode_recursive_dtor(left_deriv, NULL);
-		tnode_recursive_dtor(right_deriv, NULL);
-		return NULL;
-	}
+_CT_EXIT_POINT:
+	tnode_recursive_dtor(left_deriv, NULL);
+	tnode_recursive_dtor(right_deriv, NULL);
 
 	return op_node;
 }
@@ -72,114 +83,114 @@ struct tree_node *expr_op_deriver_subtraction(struct expression *expr, struct tr
 struct tree_node *expr_op_deriver_multiplication(struct expression *expr, struct tree_node *node) {
 	assert (node);
 
-	struct tree_node *u = expr_copy_tnode(expr, node->left);
-	struct tree_node *dv_dx = tnode_derive(expr, node->right);
+	int ret = S_OK;
+
+	struct tree_node
+		*u = NULL,
+		*dv_dx = NULL,
+		*left_product = NULL,
+		*v = NULL,
+		*du_dx = NULL,
+		*right_product = NULL,
+		*op_node = NULL;
+
+	u = expr_copy_tnode(expr, node->left);
+	dv_dx = tnode_derive(expr, node->right);
 
 	if (!u || !dv_dx) {
-		if (u) tnode_recursive_dtor(u, NULL);
-		if (dv_dx) tnode_recursive_dtor(dv_dx, NULL);
-
-		return NULL;
+		_CT_FAIL();
 	}
 
-	// u * dv_dx
-	struct tree_node *left_product = expr_create_operator_tnode(
+	left_product = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_MULTIPLY), u, dv_dx);
+	u = NULL;
+	dv_dx = NULL;
 
 	if (!left_product) {
-		tnode_recursive_dtor(u, NULL);
-		tnode_recursive_dtor(dv_dx, NULL);
-
-		return NULL;
+		_CT_FAIL();
 	}
 
-
-	struct tree_node *v = expr_copy_tnode(expr, node->right);
-	struct tree_node *du_dx = tnode_derive(expr, node->left);
+	v = expr_copy_tnode(expr, node->right);
+	du_dx = tnode_derive(expr, node->left);
 
 	if (!v || !du_dx) {
-		tnode_recursive_dtor(left_product, NULL);
-
-		if (v) tnode_recursive_dtor(v, NULL);
-		if (du_dx) tnode_recursive_dtor(du_dx, NULL);
-
-		return NULL;
+		_CT_FAIL();
 	}
-	
-	// v * du_dx  
-	struct tree_node *right_product = expr_create_operator_tnode(
+
+	right_product = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_MULTIPLY), v, du_dx);
+	v = NULL;
+	du_dx = NULL;
 
 	if (!right_product) {
-		tnode_recursive_dtor(left_product, NULL);
-
-		tnode_recursive_dtor(v, NULL);
-		tnode_recursive_dtor(du_dx, NULL);
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node * op_node = expr_create_operator_tnode(
+	op_node = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_PLUS), left_product, right_product);
+	left_product = NULL;
+	right_product = NULL;
 
-	if (!op_node) {
-		tnode_recursive_dtor(left_product, NULL);
-		tnode_recursive_dtor(right_product, NULL);
-		return NULL;
-	}
+_CT_EXIT_POINT:
+	tnode_recursive_dtor(u, NULL);
+	tnode_recursive_dtor(dv_dx, NULL);
+	tnode_recursive_dtor(left_product, NULL);
+	tnode_recursive_dtor(v, NULL);
+	tnode_recursive_dtor(du_dx, NULL);
+	tnode_recursive_dtor(right_product, NULL);
 
 	return op_node;
-
-
 }
 
 // d(u/v)/dx = (v*du/dx - u*dv/dx) / v^2
 struct tree_node *expr_op_deriver_division(struct expression *expr, struct tree_node *node) {
 	assert (node);
 
-	struct tree_node *product_der = expr_op_deriver_multiplication(expr, node);
+	int ret = S_OK;
 
+	struct tree_node
+		*product_der = NULL,
+		*v = NULL,
+		*two_node = NULL,
+		*v_squared = NULL,
+		*op_node = NULL;
+
+	product_der = expr_op_deriver_multiplication(expr, node);
 	if (!product_der) {
-		return NULL;
+		_CT_FAIL();
 	}
 
 	product_der->value.ptr = DERIV_OP(DERIVATOR_IDX_MINUS);
 
-	struct tree_node *v = expr_copy_tnode(expr, node->right);
-	struct tree_node *two_node = expr_create_number_tnode(2);
+	v = expr_copy_tnode(expr, node->right);
+	two_node = expr_create_number_tnode(2);
 
 	if (!v || !two_node) {
-		tnode_recursive_dtor(product_der, NULL);
-
-		if (v) tnode_recursive_dtor(v, NULL);
-		if (two_node) tnode_recursive_dtor(two_node, NULL);
-
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node *v_squared = expr_create_operator_tnode(
-		DERIV_OP(DERIVATOR_IDX_POW), v, two_node
-	);
+	v_squared = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_POW), v, two_node);
+	v = NULL;
+	two_node = NULL;
 
 	if (!v_squared) {
-		tnode_recursive_dtor(product_der, NULL);
-		tnode_recursive_dtor(v, NULL);
-		tnode_recursive_dtor(two_node, NULL);
-
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node * op_node = expr_create_operator_tnode(
+	op_node = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_DIVIDE), product_der, v_squared);
+	product_der = NULL;
+	v_squared = NULL;
 
-	if (!op_node) {
-		tnode_recursive_dtor(product_der, NULL);
-		tnode_recursive_dtor(v_squared, NULL);
-		return NULL;
-	}
+_CT_EXIT_POINT:
+	tnode_recursive_dtor(product_der, NULL);
+	tnode_recursive_dtor(v, NULL);
+	tnode_recursive_dtor(two_node, NULL);
+	tnode_recursive_dtor(v_squared, NULL);
 
 	return op_node;
 }
-
 
 // d(u^C)/dx = C*(u^(C-1))*du/dx
 struct tree_node *expr_op_deriver_power_const(
@@ -187,71 +198,77 @@ struct tree_node *expr_op_deriver_power_const(
 	assert (expr);
 	assert (node);
 
+	int ret = S_OK;
+
+	struct tree_node
+		*u_cpy = NULL,
+		*v_cpy = NULL,
+		*v_pow_cpy = NULL,
+		*one_scalar = NULL,
+		*v_min_one = NULL,
+		*u_pow_vm = NULL,
+		*v_mul_upow = NULL,
+		*u_derivative = NULL,
+		*op_node = NULL;
+
 	struct tree_node *u = node->left;
 	struct tree_node *v = node->right;
 
-	struct tree_node *u_cpy = expr_copy_tnode(expr, u);
-	struct tree_node *v_cpy = expr_copy_tnode(expr, v);
-	struct tree_node *v_pow_cpy = expr_copy_tnode(expr, v);
-	struct tree_node *one_scalar = expr_create_number_tnode(1);
+	u_cpy = expr_copy_tnode(expr, u);
+	v_cpy = expr_copy_tnode(expr, v);
+	v_pow_cpy = expr_copy_tnode(expr, v);
+	one_scalar = expr_create_number_tnode(1);
+
 	if (!u_cpy || !v_cpy || !v_pow_cpy || !one_scalar) {
-		if (u_cpy) tnode_recursive_dtor(u_cpy, NULL);
-		if (v_cpy) tnode_recursive_dtor(v_cpy, NULL);
-		if (v_pow_cpy) tnode_recursive_dtor(v_pow_cpy, NULL);
-		return NULL;
+		_CT_FAIL();
 	}
 
-
-	struct tree_node *v_min_one = expr_create_operator_tnode(
+	v_min_one = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_MINUS), v_pow_cpy, one_scalar);
-
-	if (!v_min_one) {
-		tnode_recursive_dtor(u_cpy, NULL);
-		tnode_recursive_dtor(v_cpy, NULL);
-		tnode_recursive_dtor(v_pow_cpy, NULL);
-		tnode_recursive_dtor(one_scalar, NULL);
-		return NULL;
-	}
 	v_pow_cpy = NULL;
 	one_scalar = NULL;
 
-	struct tree_node *u_pow_vm = expr_create_operator_tnode(
-		DERIV_OP(DERIVATOR_IDX_POW), u_cpy, v_min_one);
-
-	if (!u_pow_vm) {
-		tnode_recursive_dtor(u_cpy, NULL);
-		tnode_recursive_dtor(v_cpy, NULL);
-		tnode_recursive_dtor(v_min_one, NULL);
-		return NULL;
+	if (!v_min_one) {
+		_CT_FAIL();
 	}
+
+	u_pow_vm = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_POW), u_cpy, v_min_one);
 	u_cpy = NULL;
 	v_min_one = NULL;
 
-	struct tree_node *v_mul_upow = expr_create_operator_tnode(
-		DERIV_OP(DERIVATOR_IDX_MULTIPLY), v_cpy, u_pow_vm);
-	if (!v_mul_upow) {
-		tnode_recursive_dtor(v_cpy, NULL);
-		tnode_recursive_dtor(u_pow_vm, NULL);
-		return NULL;
+	if (!u_pow_vm) {
+		_CT_FAIL();
 	}
+
+	v_mul_upow = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_MULTIPLY), v_cpy, u_pow_vm);
 	v_cpy = NULL;
 	u_pow_vm = NULL;
 
-	struct tree_node *u_derivative = tnode_derive(expr, u);
+	if (!v_mul_upow) {
+		_CT_FAIL();
+	}
+
+	u_derivative = tnode_derive(expr, u);
 	if (!u_derivative) {
-		tnode_recursive_dtor(v_mul_upow, NULL);
-		return NULL;
+		_CT_FAIL();
 	}
 
-
-	struct tree_node * op_node = expr_create_operator_tnode(
+	op_node = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_MULTIPLY), v_mul_upow, u_derivative);
+	v_mul_upow = NULL;
+	u_derivative = NULL;
 
-	if (!op_node) {
-		tnode_recursive_dtor(v_mul_upow, NULL);
-		tnode_recursive_dtor(u_derivative, NULL);
-		return NULL;
-	}
+_CT_EXIT_POINT:
+	tnode_recursive_dtor(u_cpy, NULL);
+	tnode_recursive_dtor(v_cpy, NULL);
+	tnode_recursive_dtor(v_pow_cpy, NULL);
+	tnode_recursive_dtor(one_scalar, NULL);
+	tnode_recursive_dtor(v_min_one, NULL);
+	tnode_recursive_dtor(u_pow_vm, NULL);
+	tnode_recursive_dtor(v_mul_upow, NULL);
+	tnode_recursive_dtor(u_derivative, NULL);
 
 	return op_node;
 }
@@ -260,6 +277,17 @@ struct tree_node *expr_op_deriver_power_const(
 struct tree_node *expr_op_deriver_power(struct expression *expr, struct tree_node *node) {
 	assert (node);
 
+	int ret = S_OK;
+
+	struct tree_node
+		*o_pow = NULL,
+		*u_cpy = NULL,
+		*v_cpy = NULL,
+		*ln_u = NULL,
+		*mul_op = NULL,
+		*mul_derivative = NULL,
+		*op_node = NULL;
+
 	struct tree_node *u = node->left;
 	struct tree_node *v = node->right;
 
@@ -267,57 +295,54 @@ struct tree_node *expr_op_deriver_power(struct expression *expr, struct tree_nod
 		return expr_op_deriver_power_const(expr, node);
 	}
 
-	struct tree_node *o_pow = expr_copy_tnode(expr, node);
+	o_pow = expr_copy_tnode(expr, node);
 	if (!o_pow) {
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node *u_cpy = expr_copy_tnode(expr, u);
-	struct tree_node *v_cpy = expr_copy_tnode(expr, v);
+	u_cpy = expr_copy_tnode(expr, u);
+	v_cpy = expr_copy_tnode(expr, v);
 	if (!u_cpy || !v_cpy) {
-		tnode_recursive_dtor(o_pow, NULL);
-		if (u_cpy) tnode_recursive_dtor(u_cpy, NULL);
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node *ln_u = expr_create_operator_tnode(
+	ln_u = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_LN), u_cpy, NULL);
-
-	if (!ln_u) {
-		tnode_recursive_dtor(o_pow, NULL);
-		tnode_recursive_dtor(u_cpy, NULL);
-		tnode_recursive_dtor(v_cpy, NULL);
-		return NULL;
-	}
 	u_cpy = NULL;
 
-	struct tree_node *mul_op = expr_create_operator_tnode(
+	if (!ln_u) {
+		_CT_FAIL();
+	}
+
+	mul_op = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_MULTIPLY), v_cpy, ln_u);
-	if (!mul_op) {
-		tnode_recursive_dtor(o_pow, NULL);
-		tnode_recursive_dtor(ln_u, NULL);
-		tnode_recursive_dtor(v_cpy, NULL);
-		return NULL;
-	}
-	ln_u = NULL;
 	v_cpy = NULL;
+	ln_u = NULL;
 
-	struct tree_node *mul_derivative = tnode_derive(expr, mul_op);
-	if (!mul_derivative) {
-		tnode_recursive_dtor(o_pow, NULL);
-		tnode_recursive_dtor(mul_op, NULL);
-		return NULL;
+	if (!mul_op) {
+		_CT_FAIL();
 	}
+
+	mul_derivative = tnode_derive(expr, mul_op);
 	tnode_recursive_dtor(mul_op, NULL);
+	mul_op = NULL;
 
-	struct tree_node * op_node = expr_create_operator_tnode(
-		DERIV_OP(DERIVATOR_IDX_MULTIPLY), o_pow, mul_derivative);
-
-	if (!op_node) {
-		tnode_recursive_dtor(o_pow, NULL);
-		tnode_recursive_dtor(mul_derivative, NULL);
-		return NULL;
+	if (!mul_derivative) {
+		_CT_FAIL();
 	}
+
+	op_node = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_MULTIPLY), o_pow, mul_derivative);
+	o_pow = NULL;
+	mul_derivative = NULL;
+
+_CT_EXIT_POINT:
+	tnode_recursive_dtor(o_pow, NULL);
+	tnode_recursive_dtor(u_cpy, NULL);
+	tnode_recursive_dtor(v_cpy, NULL);
+	tnode_recursive_dtor(ln_u, NULL);
+	tnode_recursive_dtor(mul_op, NULL);
+	tnode_recursive_dtor(mul_derivative, NULL);
 
 	return op_node;
 }
@@ -326,30 +351,36 @@ struct tree_node *expr_op_deriver_power(struct expression *expr, struct tree_nod
 struct tree_node *expr_op_deriver_log(struct expression *expr, struct tree_node *node) {
 	assert (node);
 
+	int ret = S_OK;
+
+	struct tree_node
+		*du_dx = NULL,
+		*u_cpy = NULL,
+		*op_node = NULL;
+
 	if (node->right != NULL)
 		return NULL;
 
 	struct tree_node *u = node->left;
 
-	struct tree_node *du_dx = tnode_derive(expr, u);
+	du_dx = tnode_derive(expr, u);
 	if (!du_dx) {
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node *u_cpy = expr_copy_tnode(expr, u);
+	u_cpy = expr_copy_tnode(expr, u);
 	if (!u_cpy) {
-		tnode_recursive_dtor(du_dx, NULL);
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node * op_node = expr_create_operator_tnode(
+	op_node = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_DIVIDE), du_dx, u_cpy);
+	du_dx = NULL;
+	u_cpy = NULL;
 
-	if (!op_node) {
-		tnode_recursive_dtor(du_dx, NULL);
-		tnode_recursive_dtor(u_cpy, NULL);
-		return NULL;
-	}
+_CT_EXIT_POINT:
+	tnode_recursive_dtor(du_dx, NULL);
+	tnode_recursive_dtor(u_cpy, NULL);
 
 	return op_node;
 }
@@ -358,57 +389,64 @@ struct tree_node *expr_op_deriver_log(struct expression *expr, struct tree_node 
 struct tree_node *expr_op_deriver_cos(struct expression *expr, struct tree_node *node) {
 	assert (node);
 
+	int ret = S_OK;
+
+	struct tree_node
+		*du_dx = NULL,
+		*u_cpy = NULL,
+		*sin_node = NULL,
+		*min_one = NULL,
+		*min_sin = NULL,
+		*op_node = NULL;
+
 	if (node->right != NULL)
 		return NULL;
 
 	struct tree_node *u = node->left;
 
-	struct tree_node *du_dx = tnode_derive(expr, u);
+	du_dx = tnode_derive(expr, u);
 	if (!du_dx) {
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node *u_cpy = expr_copy_tnode(expr, u);
+	u_cpy = expr_copy_tnode(expr, u);
 	if (!u_cpy) {
-		tnode_recursive_dtor(du_dx, NULL);
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node * sin_node = expr_create_operator_tnode(
+	sin_node = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_SIN), u_cpy, NULL);
+	u_cpy = NULL;
 
 	if (!sin_node) {
-		tnode_recursive_dtor(du_dx, NULL);
-		tnode_recursive_dtor(u_cpy, NULL);
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node *min_one = expr_create_number_tnode(-1);
-
+	min_one = expr_create_number_tnode(-1);
 	if (!min_one) {
-		tnode_recursive_dtor(du_dx, NULL);
-		tnode_recursive_dtor(sin_node, NULL);
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node *min_sin = expr_create_operator_tnode(
+	min_sin = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_MULTIPLY), min_one, sin_node);
+	min_one = NULL;
+	sin_node = NULL;
 
 	if (!min_sin) {
-		tnode_recursive_dtor(du_dx, NULL);
-		tnode_recursive_dtor(sin_node, NULL);
-		tnode_recursive_dtor(min_one, NULL);
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node * op_node = expr_create_operator_tnode(
+	op_node = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_MULTIPLY), min_sin, du_dx);
+	min_sin = NULL;
+	du_dx = NULL;
 
-	if (!op_node) {
-		tnode_recursive_dtor(du_dx, NULL);
-		tnode_recursive_dtor(min_sin, NULL);
-		return NULL;
-	}
+_CT_EXIT_POINT:
+	tnode_recursive_dtor(du_dx, NULL);
+	tnode_recursive_dtor(u_cpy, NULL);
+	tnode_recursive_dtor(sin_node, NULL);
+	tnode_recursive_dtor(min_one, NULL);
+	tnode_recursive_dtor(min_sin, NULL);
 
 	return op_node;
 }
@@ -417,39 +455,46 @@ struct tree_node *expr_op_deriver_cos(struct expression *expr, struct tree_node 
 struct tree_node *expr_op_deriver_sin(struct expression *expr, struct tree_node *node) {
 	assert (node);
 
+	int ret = S_OK;
+
+	struct tree_node
+		*du_dx = NULL,
+		*u_cpy = NULL,
+		*cos_node = NULL,
+		*op_node = NULL;
+
 	if (node->right != NULL)
 		return NULL;
 
 	struct tree_node *u = node->left;
 
-	struct tree_node *du_dx = tnode_derive(expr, u);
+	du_dx = tnode_derive(expr, u);
 	if (!du_dx) {
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node *u_cpy = expr_copy_tnode(expr, u);
+	u_cpy = expr_copy_tnode(expr, u);
 	if (!u_cpy) {
-		tnode_recursive_dtor(du_dx, NULL);
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node * cos_node = expr_create_operator_tnode(
+	cos_node = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_COS), u_cpy, NULL);
+	u_cpy = NULL;
 
 	if (!cos_node) {
-		tnode_recursive_dtor(du_dx, NULL);
-		tnode_recursive_dtor(u_cpy, NULL);
-		return NULL;
+		_CT_FAIL();
 	}
 
-	struct tree_node * op_node = expr_create_operator_tnode(
+	op_node = expr_create_operator_tnode(
 		DERIV_OP(DERIVATOR_IDX_MULTIPLY), cos_node, du_dx);
+	cos_node = NULL;
+	du_dx = NULL;
 
-	if (!op_node) {
-		tnode_recursive_dtor(du_dx, NULL);
-		tnode_recursive_dtor(cos_node, NULL);
-		return NULL;
-	}
+_CT_EXIT_POINT:
+	tnode_recursive_dtor(du_dx, NULL);
+	tnode_recursive_dtor(u_cpy, NULL);
+	tnode_recursive_dtor(cos_node, NULL);
 
 	return op_node;
 }
@@ -571,7 +616,7 @@ int expression_derive_nth(struct expression *expr, struct expression *nth_deriva
 	for (int i = 1; i < nth; i++) {
 		eprintf("%d\n", i);
 		if (expression_derive(&prevdrv, nth_derivative)) {
-			expression_dtor(nth_derivative);
+			expression_dtor(&prevdrv);
 			return S_FAIL;
 		}
 
@@ -580,7 +625,7 @@ int expression_derive_nth(struct expression *expr, struct expression *nth_deriva
 
 		eprintf("s %d\n", i);
 		if (expression_simplify(&prevdrv, nth_derivative)) {
-			expression_dtor(nth_derivative);
+			expression_dtor(&prevdrv);
 			return S_FAIL;
 		}
 
@@ -589,4 +634,191 @@ int expression_derive_nth(struct expression *expr, struct expression *nth_deriva
 	}
 
 	return S_OK;
+}
+
+int expression_tailor_series_nth(struct expression *expr,
+				 struct expression *series, int nth) {
+	assert (expr);
+	assert (series);
+
+	int ret = S_OK;
+
+	struct expression nth_derivative = {0};
+	struct expression prevdrv = {0};
+	struct expression_variable *diff_variable = NULL;
+	struct tree_node
+		*nth_tailor = NULL,
+		*x_node = NULL,
+		*x_power = NULL,
+		*x_powered_node = NULL,
+		*nth_tailor_sym = NULL,
+		*new_tailor_op = NULL,
+		*ox_node = NULL,
+		*ox_power = NULL,
+		*ox_powered_node = NULL,
+		*small_o_node = NULL,
+		*num0_node = NULL,
+		*tailor_root = NULL,
+		*last_tailor_node = NULL;
+	double tailor0 = 0;
+
+	if (nth < 0) {
+		log_error("No integration yet!");
+		_CT_FAIL();
+	}
+
+	if (expression_evaluate(expr, &tailor0)) {
+		log_error("0Th expr evaluate");
+		_CT_FAIL();
+	}
+
+	ox_node = expr_create_variable_tnode(expr->differentiating_variable);
+	ox_power = expr_create_number_tnode(nth);
+	if (!ox_node || !ox_power) {
+		_CT_FAIL();
+	}
+
+	ox_powered_node = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_POW), ox_node, ox_power
+	);
+
+	if (!ox_powered_node) {
+		_CT_FAIL();	
+	}
+	ox_node = NULL;
+	ox_power = NULL;
+
+	small_o_node = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_SMALL_O), ox_powered_node, NULL
+	);
+
+	if (!small_o_node) {
+		_CT_FAIL();	
+	}
+	ox_powered_node = NULL;
+
+	num0_node = expr_create_number_tnode(tailor0);
+	if (!num0_node) {
+		_CT_FAIL();	
+	}
+
+	tailor_root = expr_create_operator_tnode(
+		DERIV_OP(DERIVATOR_IDX_PLUS), num0_node, small_o_node
+	);
+
+	if (!tailor_root) {
+		_CT_FAIL();	
+		return S_FAIL;
+	}
+	small_o_node = NULL;
+
+	last_tailor_node = num0_node;
+	num0_node = NULL;
+
+	if (expression_clone(expr, &prevdrv)) {
+		_CT_FAIL();	
+	};
+
+	if (pvector_get(
+		&expr->variables, expr->differentiating_variable, (void **)&diff_variable)) {
+		_CT_FAIL();	
+	}	
+
+	for (int i = 1; i <= nth; i++) {
+		if (expression_derive(&prevdrv, &nth_derivative)) {
+			_CT_FAIL();	
+		}
+
+		expression_dtor(&prevdrv);
+		prevdrv = nth_derivative;
+
+		if (expression_simplify(&prevdrv, &nth_derivative)) {
+			_CT_FAIL();		
+		}
+
+		expression_dtor(&prevdrv);
+		prevdrv = nth_derivative;
+
+		double fnum = 0;
+		if (expression_evaluate(&prevdrv, &fnum)) {
+			_CT_FAIL();
+		}
+
+		nth_tailor = expr_create_number_tnode(fnum);
+		x_node = expr_create_variable_tnode(expr->differentiating_variable);
+		x_power = expr_create_number_tnode(i);
+
+		if (!nth_tailor || !x_node || !x_power) {
+			_CT_FAIL();
+		}
+
+		x_powered_node = expr_create_operator_tnode(
+			DERIV_OP(DERIVATOR_IDX_POW), x_node, x_power
+		);
+
+		if (!x_powered_node) {
+			_CT_FAIL();	
+		}
+
+		x_node = NULL;
+		x_power = NULL;
+
+		nth_tailor_sym = expr_create_operator_tnode(
+			DERIV_OP(DERIVATOR_IDX_MULTIPLY), nth_tailor, x_powered_node 
+		);
+
+		if (!nth_tailor_sym) {
+			_CT_FAIL();	
+		}
+
+		nth_tailor = NULL;
+		x_powered_node = NULL;
+
+		new_tailor_op = expr_create_operator_tnode(
+			DERIV_OP(DERIVATOR_IDX_PLUS), last_tailor_node, nth_tailor_sym 
+		);
+
+		if (!new_tailor_op) {
+			_CT_FAIL();
+		}
+
+		nth_tailor_sym = NULL;
+
+		tailor_root->left = new_tailor_op;
+		last_tailor_node = new_tailor_op;
+
+		new_tailor_op = NULL;
+	}
+
+	expression_dtor(&prevdrv);
+
+	if (expression_ctor(series)) {
+		_CT_FAIL();
+	}
+
+	if (pvector_clone(&series->variables, &expr->variables)) {
+		_CT_FAIL();
+	}
+
+	series->differentiating_variable = expr->differentiating_variable;
+	series->tree.root = tailor_root;
+	tailor_root = NULL;
+
+_CT_EXIT_POINT:
+	tnode_recursive_dtor(ox_node, NULL);
+	tnode_recursive_dtor(ox_power, NULL);
+	tnode_recursive_dtor(ox_powered_node, NULL);
+	tnode_recursive_dtor(small_o_node, NULL);
+	tnode_recursive_dtor(num0_node, NULL);
+	expression_dtor(&prevdrv);
+	tnode_recursive_dtor(x_node, NULL);
+	tnode_recursive_dtor(nth_tailor, NULL);
+	tnode_recursive_dtor(x_node, NULL);
+	tnode_recursive_dtor(x_power, NULL);
+	tnode_recursive_dtor(x_powered_node, NULL);
+	tnode_recursive_dtor(nth_tailor_sym , NULL);
+
+	tnode_recursive_dtor(tailor_root, NULL);
+
+	return ret;
 }

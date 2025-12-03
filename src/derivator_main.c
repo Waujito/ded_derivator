@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -6,9 +7,109 @@
 #include <stdbool.h>
 #include <ctype.h>
 
+/*
+enum {
+	AKINATOR_CONTINUE,
+	AKINATOR_FAIL_ACTION,
+	AKINATOR_PREDICT,
+	AKINATOR_LOAD,
+	AKINATOR_DUMP,
+	AKINATOR_STORE,
+	AKINATOR_QUIT,
+};
+
+int read_akinator_action(void) {
+	printf(	"Enter an action of akinator: \n"
+		"[p]redict - to predict the node\n"
+		"[l]oad - to load the akinator from the file\n"
+		"[s]tore - to store the akinator to file\n"
+		"[d]ump - to graphically dump the akinator\n"
+		"[q]uit - to quit an akinator\n"
+	);
+
+	char *linebuf = NULL;
+	size_t linebuf_sz = 0;
+	ssize_t buflen = 0;
+	if ((buflen = getline(&linebuf, &linebuf_sz, stdin)) <= 0) {
+		return AKINATOR_FAIL_ACTION;
+	}
+
+	linebuf[buflen - 1] = '\0';
+	buflen--;
+	if (buflen > 63) {
+		return AKINATOR_FAIL_ACTION;
+	}
+	char buf[64] = "";
+	memcpy(buf, linebuf, (size_t)buflen + 1);
+	free(linebuf);
+
+
+	if (buflen == 1) {
+		switch (buf[0]) {
+			case 'p': return AKINATOR_PREDICT;
+			case 'l': return AKINATOR_LOAD;
+			case 's': return AKINATOR_STORE;
+			case 'd': return AKINATOR_DUMP;
+			case 'q': return AKINATOR_QUIT;
+			default: return AKINATOR_FAIL_ACTION;
+		}
+	}
+
+	if (!strcmp(buf, "predict"))
+		return AKINATOR_PREDICT;
+	if (!strcmp(buf, "load"))
+		return AKINATOR_LOAD;
+	if (!strcmp(buf, "store"))
+		return AKINATOR_STORE;
+	if (!strcmp(buf, "dump"))
+		return AKINATOR_DUMP;
+	if (!strcmp(buf, "quit"))
+		return AKINATOR_QUIT;
+
+	return AKINATOR_FAIL_ACTION;
+}
+
+int akinator_action(struct akinator *aki, struct tree_dump_params *dump_params) {
+	switch (read_akinator_action()) {
+		case AKINATOR_PREDICT:
+			if (akinator_ask(aki)) {
+				eprintf("ask\n");
+			}
+			break;
+		case AKINATOR_LOAD:
+			if (akinator_load(aki, "meow.tree")) {
+				eprintf("load\n");
+			}
+			break;
+		case AKINATOR_DUMP: {
+			char buf[64] = "";
+			snprintf(buf, 64, "tree_graph%d.png", dump_params->idx);
+			dump_params->idx += 1;
+			dump_params->drawing_filename = buf;
+
+			tree_dump(&aki->tree, *dump_params);
+
+			fflush(dump_params->out_stream);
+			break;
+		}
+		case AKINATOR_STORE:
+			if (akinator_store(aki, "meow.tree")) {
+				eprintf("store\n");
+			}
+			break;
+		case AKINATOR_QUIT:
+			return AKINATOR_QUIT;
+		default:
+			return AKINATOR_FAIL_ACTION;
+	}
+
+	return AKINATOR_CONTINUE;
+}
+*/
 
 int main() {
 	struct expression expr = {0};
+
 	if (expression_parse_file("expr.txt", &expr)) {
 		log_error("error");
 		return 1;
@@ -55,6 +156,18 @@ int main() {
 	// tree_dump(&derivative.tree, dump_params);
 	fprintf(latex_file, "\\section{der sipml}\n");
 	expression_to_latex(&derivative, latex_file);
+
+
+	struct expression tailor_series = {0};
+	expression_tailor_series_nth(&expr,
+				 &tailor_series, 7);
+
+	dump_params.idx++;
+	dump_params.drawing_filename = "tree_graph3.png";
+	tree_dump(&tailor_series.tree, dump_params);
+	fprintf(latex_file, "\\section{tailor series}\n");
+	expression_to_latex(&tailor_series, latex_file);
+
 	/*
 
 	struct expression derivative2 = {0};
@@ -98,6 +211,7 @@ int main() {
 	fclose(dump_file);
 	expression_dtor(&expr);
 	expression_dtor(&derivative);
+	expression_dtor(&tailor_series);
 	// expression_dtor(&derivative2);
 	// expression_dtor(&derivative3);
 

@@ -105,6 +105,19 @@ int tnode_evaluate(struct expression *expr,
 		return S_OK;
 	}
 
+	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_VARIABLE) {
+		size_t var_idx = node->value.varidx;
+
+		struct expression_variable *variable = NULL;
+		if (pvector_get(&expr->variables, var_idx, (void *)&variable)) {
+			log_error("pvector_get error");
+			return S_FAIL;
+		}
+
+		*fnum = variable->value;
+		return S_OK;
+	}
+
 	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_OPERATOR) {
 		const struct expression_operator *op = node->value.ptr;
 		return op->evaluator(expr, node, fnum);

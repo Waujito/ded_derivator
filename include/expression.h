@@ -10,7 +10,7 @@ extern "C" {
 
 struct expression_variable {
 	char *name;
-	int value;
+	double value;
 };
 
 struct expression {
@@ -21,6 +21,11 @@ struct expression {
 
 int expression_ctor(struct expression *expr);
 int expression_dtor(struct expression *expr);
+
+int expression_clone(struct expression *expr, struct expression *nexpr);
+
+int expression_tailor_series_nth(struct expression *expr,
+				 struct expression *series, int nth);
 
 int expression_validate(struct expression *expr);
 int expression_load(struct expression *expr, const char *filename);
@@ -52,6 +57,7 @@ enum expression_indexes {
 	DERIVATOR_IDX_LN,
 	DERIVATOR_IDX_SIN,
 	DERIVATOR_IDX_COS,
+	DERIVATOR_IDX_SMALL_O,
 };
 
 struct expression_operator {
@@ -115,7 +121,18 @@ DECLARE_EXPERSSION_OP(DERIVATOR_IDX_DIVIDE, division, "/", "\\eddivide", 2);
 DECLARE_EXPERSSION_OP(DERIVATOR_IDX_LN, log, "ln", "\\edln", 1);
 DECLARE_EXPERSSION_OP(DERIVATOR_IDX_SIN, sin, "sin", "\\edsin", 1);
 DECLARE_EXPERSSION_OP(DERIVATOR_IDX_COS, cos, "cos", "\\edcos", 1);
+
+static const struct expression_operator expr_operator_small_o = {
+    .idx = DERIVATOR_IDX_SMALL_O,
+    .name = "",
+    .deriver = NULL,
+    .evaluator = NULL,
+    .latex_name = "\\edsmallo",
+    .priority = 1,
+};
+
 DECLARE_EXPERSSION_OP(DERIVATOR_IDX_POW, power, "^", "\\edpower", 0);
+
 
 #undef DECLARE_EXPERSSION_OP
 
@@ -131,6 +148,7 @@ static const struct expression_operator *const expression_operators[] = {
 	REGISTER_EXPRESSION_OP(DERIVATOR_IDX_LN, log),
 	REGISTER_EXPRESSION_OP(DERIVATOR_IDX_SIN, sin),
 	REGISTER_EXPRESSION_OP(DERIVATOR_IDX_COS, cos),
+	REGISTER_EXPRESSION_OP(DERIVATOR_IDX_SMALL_O, small_o),
 	NULL,
 };
 

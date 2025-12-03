@@ -260,3 +260,29 @@ struct tree_node *expr_copy_tnode(struct expression *expr, struct tree_node *ori
 
 	return copy;
 }
+
+int expression_clone(struct expression *expr, struct expression *nexpr) {
+	assert (expr);
+	assert (nexpr);
+
+	*nexpr = (struct expression) {
+		.differentiating_variable = expr->differentiating_variable,
+		.tree = {0},
+		.variables = NULL,
+	};
+
+	if (tree_ctor(&nexpr->tree)) {
+		return S_FAIL;
+	};
+	nexpr->tree.root = expr_copy_tnode(expr, expr->tree.root);
+	if (!nexpr->tree.root) {
+		return S_FAIL;
+	}
+
+	if (pvector_clone(&nexpr->variables, &expr->variables)) {
+		expression_dtor(nexpr);
+		return S_FAIL;
+	}
+
+	return S_OK;
+}
