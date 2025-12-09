@@ -1,9 +1,19 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "tree.h"
 
 #include "expression.h"
+
+static void pv_tree_dtor(void *el) {
+	tree_dtor(el);	
+}
+
+static void pv_free_file(void *el) {
+	unlink(*(char **)el);
+	free(*(char **)el);
+}
 
 int expression_ctor(struct expression *expr) {
 	assert (expr);
@@ -13,7 +23,21 @@ int expression_ctor(struct expression *expr) {
 	}
 
 	if (pvector_init(&(expr->variables), sizeof(struct expression_variable))) {
-		tree_dtor(&expr->tree);
+		return S_FAIL;
+	}
+
+	if (pvector_init(&(expr->derivatives), sizeof(struct tree))) {
+		return S_FAIL;
+	}
+
+	if (pvector_init(&(expr->graph_files), sizeof(char *))) {
+		return S_FAIL;
+	}
+
+	if (pvector_set_element_destructor(&(expr->derivatives), pv_tree_dtor)) {
+		return S_FAIL;
+	}
+	if (pvector_set_element_destructor(&(expr->graph_files), pv_free_file)) {
 		return S_FAIL;
 	}
 
@@ -25,6 +49,8 @@ int expression_dtor(struct expression *expr) {
 
 	tree_dtor(&expr->tree);
 	pvector_destroy(&expr->variables);
+	pvector_destroy(&expr->derivatives);
+	pvector_destroy(&expr->graph_files);
 
 	return S_OK;
 }
@@ -274,7 +300,10 @@ int expression_clone(struct expression *expr, struct expression *nexpr) {
 	if (tree_ctor(&nexpr->tree)) {
 		return S_FAIL;
 	};
+
 	nexpr->tree.root = expr_copy_tnode(expr, expr->tree.root);
+	nexpr->latex_file = expr->latex_file;
+
 	if (!nexpr->tree.root) {
 		return S_FAIL;
 	}

@@ -33,7 +33,7 @@ TESTSRC := test/test_dummy.cpp
 TESTOBJ := $(TESTSRC:%.cpp=$(BUILD_DIR)/%.cpp.o)
 TEST_LIB_APP := $(BUILD_DIR)/test_derivator
 
-DERIVATOR_SRC := src/expression.c src/tree.c src/derivator_main.c src/expression_derive.c src/expression_evaluate.c src/expression_parser.c src/expression_latex.c src/expression_simplify.c
+DERIVATOR_SRC := src/expression.c src/tree.c src/derivator_main.c src/expression_derive.c src/expression_evaluate.c src/expression_parser.c src/expression_latex.c src/expression_simplify.c src/expression_plot.c
 DERIVATOR_OBJ := $(DERIVATOR_SRC:%.c=$(BUILD_DIR)/%.c.o)
 DERIVATOR_APP := $(BUILD_DIR)/derivator
 

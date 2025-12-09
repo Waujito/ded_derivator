@@ -8,10 +8,18 @@
 
 static const double deps = 1e-9;
 
-static struct tree_node *tnode_simplify(struct expression *expr, struct tree_node *node) {
+#define EXPR_TNODE_IS_NUMBER(node) ((node->value.flags & DERIVATOR_F_OPERATOR) \
+						== DERIVATOR_F_NUMBER)
+#define EXPR_TNODE_IS_VARIABLE(node) ((node->value.flags & DERIVATOR_F_OPERATOR) \
+						== DERIVATOR_F_VARIABLE)
+#define EXPR_TNODE_IS_OPERATOR(node) ((node->value.flags & DERIVATOR_F_OPERATOR) \
+						== DERIVATOR_F_OPERATOR)
+#define EXPR_TNODE_IS_CONSTANT(node) (node->value.flags & DERIVATOR_F_CONSTANT)
+
+struct tree_node *tnode_simplify(struct expression *expr, struct tree_node *node) {
 	assert (node);
 
-	if (node->value.flags & DERIVATOR_F_CONSTANT) {
+	if (EXPR_TNODE_IS_CONSTANT(node)) {
 		double fnum = 0;
 
 		if (tnode_evaluate(expr, node, &fnum)) {
@@ -21,11 +29,11 @@ static struct tree_node *tnode_simplify(struct expression *expr, struct tree_nod
 		return expr_create_number_tnode(fnum);
 	}
 
-	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER) {
+	if (EXPR_TNODE_IS_NUMBER(node)) {
 		return expr_copy_tnode(expr, node);
 	}
 
-	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_VARIABLE) {
+	if (EXPR_TNODE_IS_VARIABLE(node)) {
 		return expr_copy_tnode(expr, node);
 	}
 
@@ -48,35 +56,52 @@ static struct tree_node *tnode_simplify(struct expression *expr, struct tree_nod
 	}
 
 	if (op->idx == DERIVATOR_IDX_MULTIPLY) {
-		if (((lnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(lnode->value.fnum) < deps) ||
-		    ((rnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(rnode->value.fnum) < deps)) {
-			
+		if ((EXPR_TNODE_IS_NUMBER(lnode) && fabs(lnode->value.fnum) < deps) ||
+		    (EXPR_TNODE_IS_NUMBER(rnode) && fabs(rnode->value.fnum) < deps)) {	
 			if (lnode) tnode_recursive_dtor(lnode, NULL);
 			if (rnode) tnode_recursive_dtor(rnode, NULL);
 
 			return expr_create_number_tnode(0);
 		}
 
-		if (((lnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(lnode->value.fnum - 1) < deps)) {
+		if (EXPR_TNODE_IS_NUMBER(lnode)) {
+			struct expression_operator *rnop = rnode->value.ptr;
+
+			if ((EXPR_TNODE_IS_OPERATOR(rnode) && 
+			     rnop->idx == DERIVATOR_IDX_MULTIPLY &&
+			     EXPR_TNODE_IS_NUMBER(rnode->left))) {
+				double fnum = lnode->value.fnum * rnode->left->value.fnum;
+
+				tnode_recursive_dtor(lnode, NULL);
+				tnode_recursive_dtor(rnode->left, NULL);
+
+				struct tree_node *real_rnode = rnode->right;
+				tnode_dtor(rnode, NULL);
+				rnode = real_rnode;
+
+				lnode = expr_create_number_tnode(fnum);
+
+				if (!lnode) {
+					tnode_recursive_dtor(rnode, NULL);
+					return NULL;
+				}
+			}
+		}
+
+		if ((EXPR_TNODE_IS_NUMBER(lnode) && fabs(lnode->value.fnum - 1) < deps)) {
 			if (lnode) tnode_recursive_dtor(lnode, NULL);
 
 			return rnode;
 		}
-		if (((rnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(rnode->value.fnum - 1) < deps)) {
+		if ((EXPR_TNODE_IS_NUMBER(rnode) && fabs(rnode->value.fnum - 1) < deps)) {
 			if (rnode) tnode_recursive_dtor(rnode, NULL);
 
 			return lnode;
-		}
+		}	
 	}
 
 	if (op->idx == DERIVATOR_IDX_DIVIDE) {
-		if (((lnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(lnode->value.fnum) < deps)) {
-			
+		if ((EXPR_TNODE_IS_NUMBER(lnode) && fabs(lnode->value.fnum) < deps)) {	
 			if (lnode) tnode_recursive_dtor(lnode, NULL);
 			if (rnode) tnode_recursive_dtor(rnode, NULL);
 
@@ -85,14 +110,12 @@ static struct tree_node *tnode_simplify(struct expression *expr, struct tree_nod
 	}
 
 	if (op->idx == DERIVATOR_IDX_PLUS) {
-		if (((lnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(lnode->value.fnum) < deps)) {
+		if ((EXPR_TNODE_IS_NUMBER(lnode) && fabs(lnode->value.fnum) < deps)) {
 			if (lnode) tnode_recursive_dtor(lnode, NULL);
 
 			return rnode;
 		}
-		if (((rnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(rnode->value.fnum) < deps)) {
+		if ((EXPR_TNODE_IS_NUMBER(rnode) && fabs(rnode->value.fnum) < deps)) {
 			if (rnode) tnode_recursive_dtor(rnode, NULL);
 
 			return lnode;
@@ -100,20 +123,24 @@ static struct tree_node *tnode_simplify(struct expression *expr, struct tree_nod
 	}
 
 	if (op->idx == DERIVATOR_IDX_MINUS) {
-		if (((rnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(rnode->value.fnum) < deps)) {
+		if ((EXPR_TNODE_IS_NUMBER(rnode) && fabs(rnode->value.fnum) < deps)) {
 			if (rnode) tnode_recursive_dtor(rnode, NULL);
 
 			return lnode;
 		}
 	}
 	if (op->idx == DERIVATOR_IDX_POW) {
-		if (((rnode->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER &&
-			fabs(rnode->value.fnum) < deps)) {
+		if ((EXPR_TNODE_IS_NUMBER(rnode) && fabs(rnode->value.fnum) < deps)) {
 			if (lnode) tnode_recursive_dtor(lnode, NULL);
 			if (rnode) tnode_recursive_dtor(rnode, NULL);
 
 			return expr_create_number_tnode(1);
+		}
+
+		if ((EXPR_TNODE_IS_NUMBER(rnode) && fabs(rnode->value.fnum - 1) < deps)) {
+			if (rnode) tnode_recursive_dtor(rnode, NULL);
+
+			return lnode;
 		}
 	}
 
@@ -125,7 +152,7 @@ static struct tree_node *tnode_simplify(struct expression *expr, struct tree_nod
 		return NULL;
 	}
 
-	if ((new_node->value.flags & DERIVATOR_F_CONSTANT) == DERIVATOR_F_CONSTANT) {
+	if (EXPR_TNODE_IS_NUMBER(new_node)) {
 		double fnum = 0;
 
 		if (tnode_evaluate(expr, new_node, &fnum)) {
@@ -159,6 +186,7 @@ int expression_simplify(struct expression *expr, struct expression *simplified) 
 	}
 
 	simplified->tree.root = simplified_root;
+	simplified->latex_file = expr->latex_file;
 
 	if (pvector_clone(&simplified->variables, &expr->variables)) {
 		expression_dtor(simplified);
@@ -166,7 +194,6 @@ int expression_simplify(struct expression *expr, struct expression *simplified) 
 	}
 
 	if (expression_validate(simplified)) {
-		eprintf("dick\n");
 		return S_FAIL;
 	}
 

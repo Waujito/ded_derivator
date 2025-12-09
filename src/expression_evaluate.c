@@ -85,6 +85,10 @@ EXPR_UNARY_OP(cos,
 	*fnum = cos(src_num);
 )
 
+EXPR_UNARY_OP(small_o,
+	*fnum = 0;
+)
+
 int expr_op_evaluator_variable(struct expression *expr,
 				   struct tree_node *node, double *fnum) {
 	assert (expr);

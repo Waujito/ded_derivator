@@ -499,6 +499,13 @@ _CT_EXIT_POINT:
 	return op_node;
 }
 
+// d(o(x^n))/dx = o(x^n)
+struct tree_node *expr_op_deriver_small_o(struct expression *expr, struct tree_node *node) {
+	assert (node);
+
+	return expr_copy_tnode(expr, node);
+}
+
 // dx/dx = 1
 struct tree_node *expr_op_deriver_variable(struct expression *expr, struct tree_node *node) {
 	(void)node;
@@ -517,24 +524,38 @@ static struct tree_node *expr_op_deriver_constant(
 static struct tree_node *tnode_derive(struct expression *expr, struct tree_node *node) {
 	assert (node);
 
+	struct tree_node *derivative_node = NULL;	
+
 	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_NUMBER) {
-		return expr_op_deriver_constant(expr, node);
-	}
-
-	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_VARIABLE) {
-		return expr_op_deriver_variable(expr, node);
-	}
-
-	if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_OPERATOR) {
+		derivative_node = expr_op_deriver_constant(expr, node);
+	} else if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_VARIABLE) {
+		derivative_node = expr_op_deriver_variable(expr, node);
+	} else if ((node->value.flags & DERIVATOR_F_OPERATOR) == DERIVATOR_F_OPERATOR) {
 		const struct expression_operator *op = 
 			(const struct expression_operator *)node->value.ptr;
 
-		return op->deriver(expr, node);
+		derivative_node = op->deriver(expr, node);
 	}
 
-	return NULL;
+	if (derivative_node) {
+		struct tree_node *nnode = tnode_simplify(expr, derivative_node);
+		tnode_recursive_dtor(derivative_node, NULL);
+		derivative_node = nnode;
+	}
+
+	if (derivative_node && expr->latex_file) {
+		fprintf(expr->latex_file, "\\begin{equation}\n");
+		fprintf(expr->latex_file, "\\frac{d}{dx}(");
+		tnode_to_latex(expr, node, expr->latex_file);
+		fprintf(expr->latex_file, ") = ");
+		tnode_to_latex(expr, derivative_node, expr->latex_file);
+		fprintf(expr->latex_file, "\\end{equation}\n\n");
+	}
+
+	return derivative_node;
 }
 
+/*
 int expression_derive(struct expression *expr, struct expression *derivative) {
 	assert (expr);
 	assert (derivative);
@@ -560,6 +581,7 @@ int expression_derive(struct expression *expr, struct expression *derivative) {
 	}
 
 	derivative->tree.root = derivative_root;
+	derivative->latex_file = expr->latex_file;
 
 	if (pvector_clone(&derivative->variables, &expr->variables)) {
 		expression_dtor(derivative);
@@ -574,63 +596,74 @@ int expression_derive(struct expression *expr, struct expression *derivative) {
 
 	return S_OK;
 }
+*/
 
-int expression_derive_nth(struct expression *expr, struct expression *nth_derivative, int nth) {
+int expression_derive_nth(struct expression *expr, int nth) {
 	assert (expr);
-	assert (nth_derivative);
 
 	if (nth < 0) {
 		log_error("No integration yet!");
 		return S_FAIL;
 	}
 
-	if (nth == 0) {
-		struct tree_node *derivative_root = 
-			expr_copy_tnode(expr, expr->tree.root);
+	int counted_derivatives = (int) expr->derivatives.len;
+	struct tree_node *latest_derivative = expr->tree.root;
 
-		if (!derivative_root) {
-			return S_FAIL;
-		}
-
-		if (expression_ctor(nth_derivative)) {
-			tnode_recursive_dtor(derivative_root, NULL);
-			return S_FAIL;
-		}
-
-		nth_derivative->tree.root = derivative_root;
-
-		if (pvector_clone(&nth_derivative->variables, &expr->variables)) {
-			expression_dtor(nth_derivative);
-			return S_FAIL;
-		}
-
+	// Derivatives up to nth are already counted
+	if (counted_derivatives >= nth) {
 		return S_OK;
 	}
 
-	if (expression_derive(expr, nth_derivative)) {
-		return S_FAIL;
+	if (counted_derivatives > 0) {
+		struct tree *derivative_tree = NULL;
+		if (pvector_get(&expr->derivatives, (size_t) counted_derivatives - 1,
+					(void **)&derivative_tree)) {
+			return S_FAIL;
+		}
+
+		latest_derivative = derivative_tree->root;
+
+		if (expr->latex_file) {
+			fprintf(expr->latex_file,
+				"\\section{More derivatives to the God of derivatives}\n");
+		}
+	} else {
+		if (expr->latex_file) {
+			fprintf(expr->latex_file,
+				"\\section{Find the derivatives}\n");
+		}
 	}
 
-	struct expression prevdrv = *nth_derivative;
+	for (int i = counted_derivatives + 1; i <= nth; i++) {
+		if (expr->latex_file) {
+			fprintf(expr->latex_file,
+				"\\subsection{Find the %dth derivative}\n\n", i);
+		}
 
-	for (int i = 1; i < nth; i++) {
-		eprintf("%d\n", i);
-		if (expression_derive(&prevdrv, nth_derivative)) {
-			expression_dtor(&prevdrv);
+		struct tree_node *cur_derivative = tnode_derive(expr, latest_derivative);
+
+		if (!cur_derivative) {
 			return S_FAIL;
 		}
 
-		expression_dtor(&prevdrv);
-		prevdrv = *nth_derivative;
+		struct tree derivative_tree = {0};
+		if (tree_ctor(&derivative_tree)) {
+			tnode_recursive_dtor(cur_derivative, NULL);
+			return S_FAIL;
+		}
+		derivative_tree.root = cur_derivative;
 
-		eprintf("s %d\n", i);
-		if (expression_simplify(&prevdrv, nth_derivative)) {
-			expression_dtor(&prevdrv);
+		if (pvector_push_back(&expr->derivatives, &derivative_tree)) {
+			tree_dtor(&derivative_tree);
 			return S_FAIL;
 		}
 
-		expression_dtor(&prevdrv);
-		prevdrv = *nth_derivative;
+		latest_derivative = cur_derivative;
+
+		if (expr->latex_file) {
+			fprintf(expr->latex_file, "So, the %dth derivative is: \n", i);
+			latex_print_expression_function(expr, i, expr->latex_file);
+		}
 	}
 
 	return S_OK;
@@ -646,15 +679,13 @@ double factorial(int nth) {
 	return fact;
 }
 
-int expression_tailor_series_nth(struct expression *expr,
+int expression_taylor_series_nth(struct expression *expr,
 				 struct expression *series, int nth) {
 	assert (expr);
 	assert (series);
 
 	int ret = S_OK;
 
-	struct expression nth_derivative = {0};
-	struct expression prevdrv = {0};
 	struct expression_variable *diff_variable = NULL;
 	struct tree_node
 		*nth_tailor = NULL,
@@ -671,11 +702,16 @@ int expression_tailor_series_nth(struct expression *expr,
 		*tailor_root = NULL,
 		*last_tailor_node = NULL,
 		*x0_node = NULL,
-		*x_minus_x0_node = NULL;
+		*x_minus_x0_node = NULL,
+		*simplified_root = NULL;
 	double tailor0 = 0;
 
 	if (nth < 0) {
 		log_error("No integration yet!");
+		_CT_FAIL();
+	}
+
+	if (expression_derive_nth(expr, nth)) {
 		_CT_FAIL();
 	}
 
@@ -727,32 +763,20 @@ int expression_tailor_series_nth(struct expression *expr,
 	last_tailor_node = num0_node;
 	num0_node = NULL;
 
-	if (expression_clone(expr, &prevdrv)) {
-		_CT_FAIL();	
-	};
-
 	if (pvector_get(
 		&expr->variables, expr->differentiating_variable, (void **)&diff_variable)) {
 		_CT_FAIL();	
-	}	
+	}
 
 	for (int i = 1; i <= nth; i++) {
-		if (expression_derive(&prevdrv, &nth_derivative)) {
-			_CT_FAIL();	
-		}
-
-		expression_dtor(&prevdrv);
-		prevdrv = nth_derivative;
-
-		if (expression_simplify(&prevdrv, &nth_derivative)) {
-			_CT_FAIL();		
-		}
-
-		expression_dtor(&prevdrv);
-		prevdrv = nth_derivative;
+		struct tree *derivative_tree = NULL;
+		if (pvector_get(&expr->derivatives, (size_t) (i - 1),
+					(void **)&derivative_tree)) {
+			_CT_FAIL();
+		};
 
 		double fnum = 0;
-		if (expression_evaluate(&prevdrv, &fnum)) {
+		if (tnode_evaluate(expr, derivative_tree->root, &fnum)) {
 			_CT_FAIL();
 		}
 
@@ -815,8 +839,6 @@ int expression_tailor_series_nth(struct expression *expr,
 		new_tailor_op = NULL;
 	}
 
-	expression_dtor(&prevdrv);
-
 	if (expression_ctor(series)) {
 		_CT_FAIL();
 	}
@@ -825,17 +847,17 @@ int expression_tailor_series_nth(struct expression *expr,
 		_CT_FAIL();
 	}
 
+	simplified_root = tnode_simplify(series, tailor_root);
+	if (!simplified_root) {
+		_CT_FAIL();
+	}
+	tnode_recursive_dtor(tailor_root, NULL);
+	tailor_root = simplified_root;
+	simplified_root = NULL;
+
 	series->differentiating_variable = expr->differentiating_variable;
 	series->tree.root = tailor_root;
 	tailor_root = NULL;
-
-	struct expression simple_series = {0};
-	if (expression_simplify(series, &simple_series)) {
-		expression_dtor(series);
-		_CT_FAIL();
-	}
-	expression_dtor(series);
-	*series = simple_series;
 
 _CT_EXIT_POINT:
 	tnode_recursive_dtor(ox_node, NULL);
@@ -843,7 +865,6 @@ _CT_EXIT_POINT:
 	tnode_recursive_dtor(ox_powered_node, NULL);
 	tnode_recursive_dtor(small_o_node, NULL);
 	tnode_recursive_dtor(num0_node, NULL);
-	expression_dtor(&prevdrv);
 	tnode_recursive_dtor(x_node, NULL);
 	tnode_recursive_dtor(nth_tailor, NULL);
 	tnode_recursive_dtor(x_power, NULL);

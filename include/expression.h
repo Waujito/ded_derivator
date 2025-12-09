@@ -16,7 +16,10 @@ struct expression_variable {
 struct expression {
 	struct tree tree;
 	struct pvector variables;
+	struct pvector derivatives;
+	struct pvector graph_files;
 	size_t differentiating_variable;
+	FILE *latex_file;
 };
 
 int expression_ctor(struct expression *expr);
@@ -24,20 +27,26 @@ int expression_dtor(struct expression *expr);
 
 int expression_clone(struct expression *expr, struct expression *nexpr);
 
-int expression_tailor_series_nth(struct expression *expr,
+int expression_taylor_series_nth(struct expression *expr,
 				 struct expression *series, int nth);
+
+int expression_tnode_plot_pts(struct expression *expr, struct tree_node *tnode,
+			FILE *out_file, double x_min, double x_max, int points);
+int expression_tnode_plot(struct expression *expr, struct tree_node *tnode,
+			const char *filename, double x_min, double x_max);
+int expression_taylor_plot(struct expression *expr, struct expression *taylor_expr);
+int expression_derivative_plot(struct expression *expr, int nth_derivative);
 
 int expression_validate(struct expression *expr);
 int expression_load(struct expression *expr, const char *filename);
 int expression_store(struct expression *expr, const char *filename);
 
-int expression_derive(struct expression *expr, struct expression *derivative);
+// int expression_derive(struct expression *expr, struct expression *derivative);
 
-int expression_derive_nth(struct expression *expr,
-			  struct expression *derivative,
-			  int nth);
+int expression_derive_nth(struct expression *expr, int nth);
 
 int expression_simplify(struct expression *expr, struct expression *derivative);
+struct tree_node *tnode_simplify(struct expression *expr, struct tree_node *node);
 
 int tnode_evaluate(struct expression *expr,
 				   struct tree_node *node, double *fnum);
@@ -90,8 +99,16 @@ DSError_t expression_deserializer_endp(tree_dtype *value, const char *str, const
 DSError_t expression_serializer(tree_dtype value, FILE *out_stream);
 
 DSError_t expression_to_latex(struct expression *expr, FILE *out_stream);
+DSError_t tnode_write_latex_eq(struct expression *expr, struct tree_node *tnode,
+			       FILE *out_stream);
+DSError_t tnode_to_latex(struct expression *expr,
+				struct tree_node *node, FILE *out_stream);
 DSError_t write_latex_header(FILE *latex_file);
 DSError_t write_latex_footer(FILE *latex_file);
+
+DSError_t latex_print_expression_function(struct expression *expr, int nth_derivative,
+					  FILE *out_stream);
+DSError_t latex_draw_image(FILE *latex_file, const char *image_filename);
 
 struct tree_node *expr_create_number_tnode(double fnum);
 struct tree_node *expr_create_variable_tnode(size_t idx);
@@ -121,15 +138,7 @@ DECLARE_EXPERSSION_OP(DERIVATOR_IDX_DIVIDE, division, "/", "\\eddivide", 2);
 DECLARE_EXPERSSION_OP(DERIVATOR_IDX_LN, log, "ln", "\\edln", 1);
 DECLARE_EXPERSSION_OP(DERIVATOR_IDX_SIN, sin, "sin", "\\edsin", 1);
 DECLARE_EXPERSSION_OP(DERIVATOR_IDX_COS, cos, "cos", "\\edcos", 1);
-
-static const struct expression_operator expr_operator_small_o = {
-    .idx = DERIVATOR_IDX_SMALL_O,
-    .name = "",
-    .deriver = NULL,
-    .evaluator = NULL,
-    .latex_name = "\\edsmallo",
-    .priority = 1,
-};
+DECLARE_EXPERSSION_OP(DERIVATOR_IDX_SMALL_O, small_o, "o", "\\edsmallo", 1);
 
 DECLARE_EXPERSSION_OP(DERIVATOR_IDX_POW, power, "^", "\\edpower", 0);
 
